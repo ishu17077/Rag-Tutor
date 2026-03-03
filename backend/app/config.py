@@ -4,6 +4,7 @@ Files stored on disk, paths in MySQL.
 """
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -33,7 +34,8 @@ class Settings(BaseSettings):
     # AI Configuration
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL")
-    BEDROCK_AWS_API: str = os.getenv("BEDROCK_AWS_API", None)
+    BEDROCK_AWS_API: Optional[str] = os.getenv("BEDROCK_AWS_API", None)
+    AWS_BEARER_TOKEN_BEDROCK: Optional[str] = os.getenv("AWS_BEARER_TOKEN_BEDROCK", None)
     
     # Rate Limiting
     AI_RATE_LIMIT_PER_MINUTE: int = os.getenv("AI_RATE_LIMIT_PER_MINUTE")
