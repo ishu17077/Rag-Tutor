@@ -66,7 +66,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - **Lucide React** - Icons
 
 ### Database
-- **MySQL 8.0+** - Single source of truth
+- **PostgreSQL 8.0+** - Single source of truth
 
 ## 📁 Project Structure
 

@@ -433,3 +433,8 @@ INSERT INTO departments (name, code) VALUES
 ('Electronics & Communication', 'ECE'),
 ('Information Technology', 'IT'),
 ('Artificial Intelligence & ML', 'AIML');
+
+-- student_email = "student@college.edu" student_password = "Student@123"
+INSERT INTO users (email, password_hash, role, full_name, phone, is_active) VALUES ('student@college.edu', '$2b$12$Jl/xJqbeUYfRyLaflhFXpuGx0r2xLKnIU9H7ab4EXQ23/9jJSVawu', 'student', 'John Doe', '9876543210', true);
+-- teacher_email = "teacher@college.edu" teacher_password = "Teacher@123"
+INSERT INTO users (email, password_hash, role, full_name, phone, is_active) VALUES ('teacher@college.edu', '$2b$12$nw8/NH3e3pNIR.9U9pqANOSbgmMe4ph3HHZWtMrpbcyQnpPMwKY2a', 'teacher', 'Jane Smith', '9876543211', true);

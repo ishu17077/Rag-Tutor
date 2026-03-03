@@ -16,3 +16,4 @@ build/
 npm-debug.log*
 
 /**/venv
+/**/__pycache__

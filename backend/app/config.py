@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # AI Configuration
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL")
+    BEDROCK_AWS_API: str = os.getenv("BEDROCK_AWS_API", None)
     
     # Rate Limiting
     AI_RATE_LIMIT_PER_MINUTE: int = os.getenv("AI_RATE_LIMIT_PER_MINUTE")
