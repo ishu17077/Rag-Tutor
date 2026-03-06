@@ -37,17 +37,17 @@ def check_and_create_admin(db: Session):
         db.add(user)
         db.commit()
         logger.info("Admin user created successfully.")
-    else:
-        # Force reset password to ensure defaults work
-        logger.info(f"Admin user exists. Resetting password to default.")
-        user.password_hash = hash_password(admin_password)
-        db.commit()
-        # Verify immediately
-        if verify_password(admin_password, user.password_hash):
-             logger.info("SELF-VERIFICATION: Password hash valid.")
-        else:
-             logger.error("SELF-VERIFICATION: Password hash INVALID immediately after set!")
-        logger.info("Admin password reset successfully.")
+    # else:
+    #     # Force reset password to ensure defaults work
+    #     logger.info(f"Admin user exists. Resetting password to default.")
+    #     user.password_hash = hash_password(admin_password)
+    #     db.commit()
+    #     # Verify immediately
+    #     if verify_password(admin_password, user.password_hash):
+    #          logger.info("SELF-VERIFICATION: Password hash valid.")
+    #     else:
+    #          logger.error("SELF-VERIFICATION: Password hash INVALID immediately after set!")
+    #     logger.info("Admin password reset successfully.")
 
 if __name__ == "__main__":
     init_data()

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import init_db
 from app.initial_data import init_data
+from app.ai.llm import get_bedrock_client
 
 # Import routers
 from app.routers import auth, admin, student, teacher, quiz, assignment, chat, ai_tutor
@@ -32,7 +33,8 @@ async def lifespan(app: FastAPI):
     init_db()
     print("🌱 Seeding initial data...")
     init_data()
-    
+    print("Initializing AI Model...")
+    get_bedrock_client()
     yield
     
     # Shutdown
@@ -92,7 +94,7 @@ async def health_check():
         "status": "healthy",
         "database": "connected",
         "bedrock": "connected" if bedrock_status else "disconnected",
-        "ai_model": settings.INFERENCE_PROFILE_ARN
+        # "ai_model": settings.INFERENCE_PROFILE_ARN
     }
 
 

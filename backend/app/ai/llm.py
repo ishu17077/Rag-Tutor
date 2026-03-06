@@ -88,41 +88,46 @@ async def generate_response(
         if system_prompt:
             messages.append({
                 "role": "user",
-                "content": system_prompt
+                "content": [{"text": system_prompt}]
             })
         
         messages.append({
             "role": "user",
-            "content": prompt
+            "content": [{"text":prompt}]
         })
         
         # Prepare request for Claude (Anthropic Bedrock)
         request_body = {
-            "temperature": temperature,
-            "max_tokens": max_tokens,
             "messages": messages,
+            "inferenceConfig": {
+                "max_new_tokens": max_tokens,
+                "temperature": temperature,
+            }
         }
         
         # Add system prompt to request if provided (Claude's native system parameter)
         if system_prompt:
-            request_body["system"] = system_prompt
+            # request_body["system"] = system_prompt
             # Remove duplicate system from messages
             request_body["messages"] = [{
                 "role": "user",
-                "content": prompt
+                "content": [{"text": prompt}]
             }]
         
         # Invoke the model
         response = client.invoke_model(
             modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
             body=json.dumps(request_body)
         )
         
         response_body = json.loads(response["body"].read())
+        # print(response_body["output"]["message"]["content"][0]["text"])
         
         # Extract text from response
-        if "content" in response_body and len(response_body["content"]) > 0:
-            return response_body["content"][0]["text"]
+        if "output" in response_body and len(response_body["output"]["message"]["content"]) > 0:
+            return response_body["output"]["message"]["content"][0]["text"]
         else:
             logger.warning("Unexpected response format from Bedrock")
             return ""
@@ -133,7 +138,7 @@ async def generate_response(
         
         # Check if it's an access/auth error
         if "ValidationException" in str(e) or "AccessDeniedException" in str(e):
-            return "I apologize, but there's an authentication issue with the AI service. Please check your bearer token."
+            return f"Something went wrong, please try again later {e}."
         
         # Check if it's a connection error
         if "connection" in str(e).lower() or "timeout" in str(e).lower():
@@ -174,14 +179,16 @@ async def generate_stream(
         # Construct messages
         messages = [{
             "role": "user",
-            "content": prompt
+            "content": [{"text": prompt}]
         }]
         
         # Prepare request
         request_body = {
-            "temperature": temperature,
-            "max_tokens": max_tokens,
             "messages": messages,
+            "inferenceConfig": {
+                "max_new_tokens": max_tokens,
+                "temperature": temperature,
+            }
         }
         
         # Add system prompt if provided
@@ -191,6 +198,8 @@ async def generate_stream(
         # Use invoke_model_with_response_stream for streaming
         response = client.invoke_model_with_response_stream(
             modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
             body=json.dumps(request_body)
         )
         
@@ -222,18 +231,22 @@ def check_bedrock_health() -> bool:
             logger.warning("INFERENCE_PROFILE_ARN is not set")
             return False
         
-        # Try a simple model invocation to verify connectivity
         request_body = {
-            "temperature": 0.1,
-            "max_tokens": 10,
-            "messages": [{
-                "role": "user",
-                "content": "test"
-            }]
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"text": "test"}]
+                }
+            ],
+            "inferenceConfig": {
+                "max_new_tokens": 10,
+                "temperature": 0.1
+            }
         }
-        
         response = client.invoke_model(
             modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
             body=json.dumps(request_body)
         )
         

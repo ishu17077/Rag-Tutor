@@ -15,7 +15,7 @@ from app.models.analytics import WeakTopicSource
 class AIQueryRequest(BaseModel):
     """AI tutor query request."""
     subject_id: int
-    question: str = Field(..., min_length=5)
+    question: str = Field(..., min_length=1)
     session_id: Optional[int] = None  # Continue existing session
 
 

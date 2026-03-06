@@ -22,7 +22,7 @@ class WeakTopic(Base):
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     topic_name = Column(String(255), nullable=False)
     weakness_score = Column(DECIMAL(5, 2), default=0)  # 0-100 scale
-    source = Column(Enum(WeakTopicSource), nullable=False)
+    source = Column(Enum(WeakTopicSource, name="weak_source", values_callable=lambda obj: [e.value.lower() for e in obj]), nullable=False)
     quiz_error_count = Column(Integer, default=0)
     ai_doubt_count = Column(Integer, default=0)
     last_updated = Column(
