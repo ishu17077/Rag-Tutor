@@ -13,7 +13,9 @@ from app.models.chat import SenderRole
 
 class MessageCreate(BaseModel):
     """Create a new message."""
-    message: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=0)
+    file_name: str | None = None
+    file_bytes: Optional[bytes]
     is_urgent: bool = False
 
 

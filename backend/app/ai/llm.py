@@ -7,6 +7,7 @@ import boto3
 import json
 import os
 import logging
+from fastapi import UploadFile
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def get_bedrock_client():
 
 async def generate_response(
     prompt: str,
+    initial_pdf_path: str | None,
     system_prompt: str = "",
     temperature: float = 0.7,
     max_tokens: int = 1024,
@@ -91,10 +93,35 @@ async def generate_response(
         # Construct messages with optional system prompt
         messages = []
         if system_prompt:
-            messages.append({
-                "role": "user",
-                "content": [{"text": system_prompt}]
-            })
+            if initial_pdf_path:
+                pdf_bytes = None
+                try:
+                    with open(initial_pdf_path, 'rb') as f:
+                        pdf_bytes = f.read()
+                except:
+                    pdf_bytes = None
+
+                messages.append({
+                        "role": "user",
+                        "content": [  {
+                            "document": {
+                                "name": "upload-file",
+                                "format": "pdf",
+                                "source":{
+                                    "bytes": pdf_bytes,
+                                }
+                            }
+                        },
+                        {"text": system_prompt}
+                    ]
+                })
+            else:
+                messages.append({
+                        "role": "user",
+                        "content": [ 
+                        {"text": system_prompt}
+                    ]
+                })
         if(file_bytes is not None or file_name is not None):
             file_ext: str = file_name.split(".")[-1].lower() # type: ignore
             if("." not in file_name and file_ext not in VALID_BEDROCK_FORMAT): # type: ignore

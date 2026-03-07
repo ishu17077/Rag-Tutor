@@ -2,8 +2,9 @@
 Chat Router - Student-Teacher Messaging
 """
 from typing import List
+import io
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, UploadFile
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from app.database import get_db
@@ -12,6 +13,7 @@ from app.models.student import StudentProfile
 from app.models.teacher import TeacherProfile
 from app.models.chat import ChatConversation, ChatMessage, SenderRole
 from app.schemas.chat import ConversationCreate, MessageCreate, MessageResponse
+from app.utils.file_handler import save_chat_file
 from app.utils.security import get_current_user, get_student_user, get_teacher_user
 
 
@@ -224,13 +226,19 @@ async def send_message(
         ).first()
         if conversation.teacher_id != profile.id:
             raise HTTPException(status_code=403, detail="Access denied")
+        
+    file_path = None
     
+    if(request.file_bytes is not None and request.file_name is not None):
+        file_path = await save_chat_file(file=UploadFile(file=io.BytesIO(request.file_bytes), filename=request.file_name))
+
     message = ChatMessage(
         conversation_id=conversation_id,
         sender_id=current_user.id,
         sender_role=sender_role,
+        file_path = file_path,
         message=request.message,
-        is_urgent=request.is_urgent
+        is_urgent=request.is_urgent,
     )
     db.add(message)
     
@@ -243,6 +251,7 @@ async def send_message(
     return {
         "id": message.id,
         "message": message.message,
+        "file_path": message.file_path,
         "is_urgent": message.is_urgent,
         "created_at": message.created_at
     }

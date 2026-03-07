@@ -1,7 +1,9 @@
 """
 RAG Chain Module - Complete Retrieval-Augmented Generation Pipeline
 """
+import io
 from typing import List, Dict, Tuple, Optional
+from fastapi import UploadFile
 
 import re
 from app.ai.vector_store import get_vector_store
@@ -17,6 +19,7 @@ async def rag_query(
     subject_id: int,
     subject_name: str,
     question: str,
+    initial_pdf_path: str | None,
     file_name: str | None = None,
     file_bytes: bytes | None = None,
     top_k: int = 5,
@@ -53,57 +56,58 @@ async def rag_query(
             
     # DECISION: If we have relevant content, use RAG. If not, use General Tutor Mode.
     
-    if has_relevant_content:
+    # if has_relevant_content:
         # --- RAG MODE ---
-        context_parts = []
-        citations = []
+    context_parts = []
+    citations = []
+    
+    for r in relevant_results: # type: ignore
+        source = r.get("source", "Course Material")
+        page = r.get("page", "")
+        citation = f"{source}" + (f", Page {page}" if page else "")
         
-        for r in relevant_results: # type: ignore
-            source = r.get("source", "Course Material")
-            page = r.get("page", "")
-            citation = f"{source}" + (f", Page {page}" if page else "")
-            
-            context_parts.append(f"[From {citation}]\n{r['text']}")
-            if citation not in citations:
-                citations.append(citation)
+        context_parts.append(f"[From {citation}]\n{r['text']}")
+        if citation not in citations:
+            citations.append(citation)
+    
+    context = "\n\n---\n\n".join(context_parts)
+    
+    full_prompt = SOCRATIC_TUTOR_SYSTEM_PROMPT.format(
+        subject_name=subject_name,
+        retrieved_chunks=context,
+        question=question
+    )
+    
+    answer = await generate_response(
+        prompt=full_prompt,
+        initial_pdf_path=initial_pdf_path,
+        system_prompt="You are a helpful academic tutor.",
+        file_name=file_name,
+        file_bytes=file_bytes,
+        temperature=0.7
+    )
         
-        context = "\n\n---\n\n".join(context_parts)
+    return (answer, citations, True)
+    # else:
+    #     # --- GENERAL MODE ---
+    #     # Fallback to general knowledge if no specific content is found
+    #     from app.ai.prompts import GENERAL_TUTOR_SYSTEM_PROMPT
         
-        full_prompt = SOCRATIC_TUTOR_SYSTEM_PROMPT.format(
-            subject_name=subject_name,
-            retrieved_chunks=context,
-            question=question
-        )
+    #     full_prompt = GENERAL_TUTOR_SYSTEM_PROMPT.format(
+    #         subject_name=subject_name,
+    #         question=question
+    #     )
         
-        answer = await generate_response(
-            prompt=full_prompt,
-            system_prompt="You are a helpful academic tutor.",
-            file_name=file_name,
-            file_bytes=file_bytes,
-            temperature=0.7
-        )
+    #     answer = await generate_response(
+    #         prompt=full_prompt,
+    #         initial_pdf_path= initial_pdf_path,
+    #         system_prompt="You are a helpful academic tutor.",
+    #         file_name=file_name,
+    #         file_bytes=file_bytes,
+    #         temperature=0.7
+    #     )
         
-        return (answer, citations, True)
-        
-    else:
-        # --- GENERAL MODE ---
-        # Fallback to general knowledge if no specific content is found
-        from app.ai.prompts import GENERAL_TUTOR_SYSTEM_PROMPT
-        
-        full_prompt = GENERAL_TUTOR_SYSTEM_PROMPT.format(
-            subject_name=subject_name,
-            question=question
-        )
-        
-        answer = await generate_response(
-            prompt=full_prompt,
-            system_prompt="You are a helpful academic tutor.",
-            file_name=file_name,
-            file_bytes=file_bytes,
-            temperature=0.7
-        )
-        
-        return (answer, [], True)  # We return True for is_in_scope because we are answering it generally
+    #     return (answer, [], True)  # We return True for is_in_scope because we are answering it generally
 
 
 async def extract_topic(question: str) -> Optional[str]:
@@ -120,6 +124,7 @@ async def extract_topic(question: str) -> Optional[str]:
     
     topic = await generate_response(
         prompt=prompt,
+        initial_pdf_path = None,
         temperature=0.3,
         max_tokens=20
     )

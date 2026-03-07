@@ -1,6 +1,7 @@
 """
 AI Tutor Router - RAG-based Q&A, PDF Upload, Rate Limiting
 """
+import io
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -15,7 +16,7 @@ from app.models.ai import PDFDocument, AIChatSession, AIChatMessage, AIDoubtLog,
 from app.models.system import SystemSetting
 from app.schemas.ai import AIQueryRequest, AIQueryResponse, AISubjectResponse, RateLimitStatus, ExamModeStatus
 from app.utils.security import get_student_user, get_admin_user
-from app.utils.file_handler import save_pdf_document, get_full_path
+from app.utils.file_handler import save_chat_file, save_pdf_document, get_full_path
 from app.ai.rag_chain import rag_query, extract_topic
 from app.ai.vector_store import get_vector_store, reindex_subject
 from app.ai.prompts import EXAM_MODE_RESPONSE
@@ -214,15 +215,20 @@ async def ai_chat(
     user_message = AIChatMessage(
         session_id=session.id,
         role=AIRole.USER,
-        
+
         content=request.question
     )
     db.add(user_message)
     
+    pdf_document = db.query(PDFDocument).filter(
+        PDFDocument.subject_id == request.subject_id,
+        PDFDocument.is_active == True
+    ).first()
     # Run RAG pipeline
     try:
         answer, citations, is_in_scope = await rag_query(
-          subject_id=request.subject_id,
+            initial_pdf_path=pdf_document.file_path,
+            subject_id=request.subject_id,
             subject_name=subject.name,
             question=request.question,
             file_name=request.file_name,
@@ -234,10 +240,16 @@ async def ai_chat(
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"AI processing failed: {str(e)}")
     
+    file_path = None
+    
+    if(request.file_bytes is not None and request.file_name is not None):
+        file_path = await save_chat_file(file=UploadFile(file=io.BytesIO(request.file_bytes), filename=request.file_name))
+
     # Save assistant response
     assistant_message = AIChatMessage(
         session_id=session.id,
         role=AIRole.ASSISTANT,
+        file_path = file_path,
         content=answer,
         citations=json.dumps(citations) if citations else None
     )
@@ -340,7 +352,8 @@ async def get_session_messages(
                 "id": m.id,
                 "role": m.role,
                 "content": m.content,
-                "citations": json.loads(m.citations) if m.citations else [],
+                "file_path": m.file_path,
+                "citations": json.loads(m.citations) if m.citations else [], # type: ignore
                 "created_at": m.created_at
             }
             for m in messages
