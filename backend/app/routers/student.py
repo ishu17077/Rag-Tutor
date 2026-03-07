@@ -12,6 +12,7 @@ from app.models.teacher import TeacherSubject, ClassAllocation, ClassNote
 from app.schemas.user import UserResponse, UserUpdate
 from app.schemas.academic import SubjectWithDetails
 from app.utils.security import get_student_user
+from app.services.weak_topic_service import get_student_weak_topics
 
 
 router = APIRouter(prefix="/api/student", tags=["Student"])
@@ -198,6 +199,36 @@ async def get_student_dashboard(
         "pending_assignments": pending_assignments,
         "unread_messages": unread_messages
     }
+
+
+@router.get("/weak-topics")
+async def get_weak_topics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_student_user)
+):
+    """Get the current student's weak topics ordered by weakness score."""
+    profile = db.query(StudentProfile).filter(
+        StudentProfile.user_id == current_user.id
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    weak_topics = get_student_weak_topics(db, profile.id)
+
+    return [
+        {
+            "id": wt.id,
+            "topic_name": wt.topic_name,
+            "subject_id": wt.subject_id,
+            "weakness_score": wt.weakness_score,
+            "source": wt.source.value if wt.source else None,
+            "quiz_error_count": wt.quiz_error_count,
+            "ai_doubt_count": wt.ai_doubt_count,
+            "last_updated": wt.last_updated if hasattr(wt, "last_updated") else None,
+        }
+        for wt in weak_topics
+    ]
 
 
 @router.get("/subjects/{subject_id}/notes")
