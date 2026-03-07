@@ -223,7 +223,9 @@ async def ai_chat(
         answer, citations, is_in_scope = await rag_query(
           subject_id=request.subject_id,
             subject_name=subject.name,
-            question=request.question
+            question=request.question,
+            file_name=request.file_name,
+            file_bytes=request.file_bytes,
         )
     except Exception as e:
         import traceback

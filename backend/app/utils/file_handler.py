@@ -128,6 +128,14 @@ async def save_class_note(file: UploadFile, allocation_id: int) -> str:
     )
 
 
+async def save_chat_file(file: UploadFile, allocation_id: int) -> str:
+    return await save_upload_file(
+        file,
+        subdirectory=f"chat_uploads",
+        allowed_extensions=ALLOWED_IMAGE_EXTENSIONS,
+        max_size_mb=10,
+    )
+
 
 def get_full_path(relative_path: str) -> Path:
     """Get the full disk path from a relative path."""

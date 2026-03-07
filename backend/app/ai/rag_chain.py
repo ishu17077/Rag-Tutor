@@ -17,6 +17,8 @@ async def rag_query(
     subject_id: int,
     subject_name: str,
     question: str,
+    file_name: str | None = None,
+    file_bytes: bytes | None = None,
     top_k: int = 5,
     relevance_threshold: float = 1.5
 ) -> Tuple[str, List[str], bool]:
@@ -76,6 +78,8 @@ async def rag_query(
         answer = await generate_response(
             prompt=full_prompt,
             system_prompt="You are a helpful academic tutor.",
+            file_name=file_name,
+            file_bytes=file_bytes,
             temperature=0.7
         )
         
@@ -94,6 +98,8 @@ async def rag_query(
         answer = await generate_response(
             prompt=full_prompt,
             system_prompt="You are a helpful academic tutor.",
+            file_name=file_name,
+            file_bytes=file_bytes,
             temperature=0.7
         )
         

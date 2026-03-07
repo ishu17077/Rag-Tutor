@@ -16,6 +16,8 @@ class AIQueryRequest(BaseModel):
     """AI tutor query request."""
     subject_id: int
     question: str = Field(..., min_length=1)
+    file_name: Optional[str] = None
+    file_bytes: Optional[bytes] = None
     session_id: Optional[int] = None  # Continue existing session
 
 

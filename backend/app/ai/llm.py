@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 # Bedrock client (cached)
 _bedrock_client = None
 
+VALID_BEDROCK_FORMAT = {"pdf", "csv", "doc", "docx", "xls", "xlsx", "html", "txt", "md"}
+
 def get_bedrock_client():
     """Get or create Bedrock runtime client with bearer token authentication."""
     global _bedrock_client
@@ -59,7 +61,10 @@ async def generate_response(
     prompt: str,
     system_prompt: str = "",
     temperature: float = 0.7,
-    max_tokens: int = 1024
+    max_tokens: int = 1024,
+    file_name: str | None = None,
+    file_bytes: bytes | None = None,
+
 ) -> str:
     """
     Generate response using Amazon Bedrock's Claude model.
@@ -90,11 +95,33 @@ async def generate_response(
                 "role": "user",
                 "content": [{"text": system_prompt}]
             })
-        
-        messages.append({
-            "role": "user",
-            "content": [{"text":prompt}]
-        })
+        if(file_bytes is not None or file_name is not None):
+            file_ext: str = file_name.split(".")[-1].lower() # type: ignore
+            if("." not in file_name && file_ext not in VALID_BEDROCK_FORMAT): # type: ignore
+                return "Invalid file type"
+            
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "document": {
+                            "name": "upload-file",
+                            "format": file_ext,
+                            "source":{
+                                "bytes": file_bytes,
+                            }
+                        }
+                    },
+                    {"text":prompt}
+                ]
+            })
+        else:
+             messages.append({
+                "role": "user",
+                "content": [
+                    {"text":prompt}
+                ]
+            })
         
         # Prepare request for Claude (Anthropic Bedrock)
         request_body = {
