@@ -1,7 +1,7 @@
 """
 Chat Models - Student-Teacher Conversations and Messages
 """
-from sqlalchemy import Column, Integer, Text, Boolean, Enum, ForeignKey, TIMESTAMP, text
+from sqlalchemy import Column, Integer, Text, Boolean, Enum, ForeignKey, TIMESTAMP, String, text
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
@@ -42,6 +42,7 @@ class ChatMessage(Base):
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     sender_role = Column(Enum(SenderRole, values_callable=lambda x: [e.value for e in x]), nullable=False)
     message = Column(Text, nullable=False)
+    file_path = Column(String(500), nullable=True)
     is_urgent = Column(Boolean, default=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), index=True)

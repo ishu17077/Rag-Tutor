@@ -17,6 +17,7 @@ class AIQueryRequest(BaseModel):
     subject_id: int
     question: str = Field(..., min_length=1)
     file_name: Optional[str] = None
+    # Pydantic will convert to 'bytes' and decode the incoming Base64 string
     file_bytes: Optional[bytes] = None
     session_id: Optional[int] = None  # Continue existing session
 

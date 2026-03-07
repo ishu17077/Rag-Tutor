@@ -185,6 +185,7 @@ async def get_messages(
             "sender_id": m.sender_id,
             "sender_role": m.sender_role,
             "message": m.message,
+            "file_path": m.file_path,
             "is_urgent": m.is_urgent,
             "is_read": m.is_read,
             "created_at": m.created_at

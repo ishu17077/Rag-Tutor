@@ -146,6 +146,7 @@ async def ai_chat(
 ):
     """Query AI Tutor with RAG-based response."""
     # Check exam mode
+
     exam_mode = db.query(SystemSetting).filter(
         SystemSetting.setting_key == "exam_mode"
     ).first()
@@ -188,7 +189,6 @@ async def ai_chat(
             window_start=now
         )
         db.add(rate_limit)
-    
     # Get subject
     subject = db.query(Subject).filter(Subject.id == request.subject_id).first()
     if not subject:
@@ -214,6 +214,7 @@ async def ai_chat(
     user_message = AIChatMessage(
         session_id=session.id,
         role=AIRole.USER,
+        
         content=request.question
     )
     db.add(user_message)

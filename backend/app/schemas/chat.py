@@ -24,6 +24,8 @@ class MessageResponse(BaseModel):
     sender_id: int
     sender_role: SenderRole
     message: str
+    file_name: str
+    file_bytes: bytes
     is_urgent: bool
     is_read: bool
     created_at: datetime

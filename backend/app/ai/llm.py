@@ -97,7 +97,7 @@ async def generate_response(
             })
         if(file_bytes is not None or file_name is not None):
             file_ext: str = file_name.split(".")[-1].lower() # type: ignore
-            if("." not in file_name && file_ext not in VALID_BEDROCK_FORMAT): # type: ignore
+            if("." not in file_name and file_ext not in VALID_BEDROCK_FORMAT): # type: ignore
                 return "Invalid file type"
             
             messages.append({

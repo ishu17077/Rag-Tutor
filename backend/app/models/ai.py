@@ -61,6 +61,7 @@ class AIChatMessage(Base):
     session_id = Column(Integer, ForeignKey("ai_chat_sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(Enum(AIRole, name="ai_chat_role",values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     content = Column(Text, nullable=False)
+    file_path = Column(String(500), nullable=True)
     citations = Column(Text, nullable=True)  # JSON array of page references
     created_at = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     
