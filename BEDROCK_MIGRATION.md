@@ -21,7 +21,7 @@ This project has been migrated from using Ollama (local LLM) to Amazon Bedrock (
 - **Removed**: `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
 - **Added**:
   - `AWS_REGION`: AWS region for Bedrock service
-  - `BEDROCK_MODEL_ID`: Model identifier (default: Claude 3 Sonnet)
+  - `BEDROCK_MODEL_ID`: Model identifier (default: Claude 3 Sonnet).
   - `AWS_BEARER_TOKEN_BEDROCK`: Bearer token for authentication
 
 ### 3. **Dependencies** (`requirements.txt`)
