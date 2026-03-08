@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const nextConfig = {
     images: {
         domains: ['localhost'],
@@ -6,15 +9,15 @@ const nextConfig = {
     async rewrites() {
         return [{
                 source: '/api/:path*',
-                destination: 'http://localhost:8000/api/:path*',
+                destination: `${API_URL}/api/:path*`,
             },
             {
                 source: '/uploads/:path*',
-                destination: 'http://localhost:8000/uploads/:path*',
+                destination: `${API_URL}/uploads/:path*`,
             },
             {
                 source: '/chat_uploads/:path*',
-                destination: 'http://localhost:8000/uploads/chat_uploads/:path*'
+                destination: `${API_URL}/uploads/chat_uploads/:path*`
             },
         ];
     },
