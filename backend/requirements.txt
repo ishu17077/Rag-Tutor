@@ -14,7 +14,7 @@ certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.4
 click==8.3.1
-cryptography==42.0.0
+cryptography==46.0.5
 cuda-bindings==12.9.4
 cuda-pathfinder==1.4.0
 dataclasses-json==0.6.7
