@@ -57,6 +57,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+#// make sure 304 is not returned which indicates no change instead of actual response
+#// StaticFiles.is_not_modified = lambda *args, **kwargs: False
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory=str(settings.uploads_path)), name="uploads")

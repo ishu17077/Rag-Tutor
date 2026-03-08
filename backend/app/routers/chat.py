@@ -1,6 +1,7 @@
 """
 Chat Router - Student-Teacher Messaging
 """
+import base64
 from typing import List
 import io
 from datetime import datetime
@@ -210,7 +211,7 @@ async def send_message(
     
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     # Determine sender role
     if current_user.role == UserRole.STUDENT:
         sender_role = SenderRole.STUDENT
@@ -230,6 +231,7 @@ async def send_message(
     file_path = None
     
     if(request.file_bytes is not None and request.file_name is not None):
+        request.file_bytes = base64.b64decode(request.file_bytes)
         file_path = await save_chat_file(file=UploadFile(file=io.BytesIO(request.file_bytes), filename=request.file_name))
 
     message = ChatMessage(

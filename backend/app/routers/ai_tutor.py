@@ -2,6 +2,7 @@
 AI Tutor Router - RAG-based Q&A, PDF Upload, Rate Limiting
 """
 import io
+import base64
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -243,8 +244,11 @@ async def ai_chat(
     file_path = None
     
     if(request.file_bytes is not None and request.file_name is not None):
-        file_path = await save_chat_file(file=UploadFile(file=io.BytesIO(request.file_bytes), filename=request.file_name))
-
+        try:
+            request.file_bytes = base64.b64decode(request.file_bytes)
+            file_path = await save_chat_file(file=UploadFile(file=io.BytesIO(request.file_bytes), filename=request.file_name))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Invalid file format")
     # Save assistant response
     assistant_message = AIChatMessage(
         session_id=session.id,

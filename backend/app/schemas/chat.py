@@ -13,9 +13,9 @@ from app.models.chat import SenderRole
 
 class MessageCreate(BaseModel):
     """Create a new message."""
-    message: str = Field(..., min_length=0)
-    file_name: str | None = None
-    file_bytes: Optional[bytes]
+    message: str = Field(..., min_length=1)
+    file_name: Optional[str] = None
+    file_bytes: Optional[bytes] = None
     is_urgent: bool = False
 
 
@@ -29,7 +29,7 @@ class MessageResponse(BaseModel):
     file_name: str
     file_bytes: bytes
     is_urgent: bool
-    is_read: bool
+    is_read: bool   
     created_at: datetime
 
     class Config:

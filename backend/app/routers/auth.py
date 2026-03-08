@@ -26,13 +26,8 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token."""
     user = db.query(User).filter(User.email == request.email).first()
-    
-    print(f"Login attempt for: {request.email}")
-    print(f"DEBUG: Received password: '{request.password}'")
     if user:
-        print(f"User found: {user.email}, Role: {user.role}, Active: {user.is_active}")
         is_correct = verify_password(request.password, user.password_hash)
-        print(f"Password correct: {is_correct}")
     else:
         print("User not found")
 

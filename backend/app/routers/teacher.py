@@ -369,3 +369,151 @@ async def get_class_notes(
         for n in notes
     ]
 
+
+@router.get("/classes/{allocation_id}/pdfs")
+async def get_class_pdfs(
+    allocation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_teacher_user)
+):
+    """Get AI study material PDFs for a class."""
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.user_id == current_user.id
+    ).first()
+    
+    allocation = db.query(ClassAllocation).filter(
+        ClassAllocation.id == allocation_id,
+        ClassAllocation.teacher_id == profile.id
+    ).first()
+    
+    if not allocation:
+        raise HTTPException(status_code=404, detail="Class allocation not found")
+    
+    pdfs = db.query(PDFDocument).filter(
+        PDFDocument.subject_id == allocation.subject_id,
+        PDFDocument.is_active == True
+    ).order_by(PDFDocument.created_at.desc()).all()
+    
+    return [
+        {
+            "id": p.id,
+            "file_name": p.file_name,
+            "file_size": p.file_size,
+            "is_indexed": p.is_indexed,
+            "indexed_at": p.indexed_at,
+            "created_at": p.created_at
+        }
+        for p in pdfs
+    ]
+
+
+@router.post("/classes/{allocation_id}/pdfs")
+async def upload_class_pdf(
+    allocation_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_teacher_user)
+):
+    """Upload a PDF for AI study materials (RAG indexing)."""
+    from app.utils.file_handler import save_pdf_document
+    
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.user_id == current_user.id
+    ).first()
+    
+    allocation = db.query(ClassAllocation).filter(
+        ClassAllocation.id == allocation_id,
+        ClassAllocation.teacher_id == profile.id
+    ).first()
+    
+    if not allocation:
+        raise HTTPException(status_code=404, detail="Class allocation not found")
+    
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed for AI study materials")
+    
+    # Save PDF to disk
+    file_path = await save_pdf_document(file, allocation.subject_id)
+    full_path = get_full_path(file_path)
+    file_size = full_path.stat().st_size
+    
+    # Create PDF record
+    pdf_doc = PDFDocument(
+        subject_id=allocation.subject_id,
+        file_name=file.filename,
+        file_path=file_path,
+        file_size=file_size,
+        uploaded_by=current_user.id,
+        is_indexed=False
+    )
+    db.add(pdf_doc)
+    db.commit()
+    db.refresh(pdf_doc)
+    
+    # Index the PDF for AI
+    indexed = index_pdf_document(db, pdf_doc)
+    
+    return {
+        "message": "PDF uploaded and indexed successfully" if indexed else "PDF uploaded but indexing failed",
+        "pdf_id": pdf_doc.id,
+        "is_indexed": pdf_doc.is_indexed
+    }
+
+
+@router.delete("/classes/{allocation_id}/pdfs/{pdf_id}")
+async def delete_class_pdf(
+    allocation_id: int,
+    pdf_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_teacher_user)
+):
+    """Delete an AI study material PDF."""
+    from app.utils.file_handler import delete_file
+    from app.ai.vector_store import reindex_subject
+    
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.user_id == current_user.id
+    ).first()
+    
+    allocation = db.query(ClassAllocation).filter(
+        ClassAllocation.id == allocation_id,
+        ClassAllocation.teacher_id == profile.id
+    ).first()
+    
+    if not allocation:
+        raise HTTPException(status_code=404, detail="Class allocation not found")
+    
+    pdf_doc = db.query(PDFDocument).filter(
+        PDFDocument.id == pdf_id,
+        PDFDocument.subject_id == allocation.subject_id
+    ).first()
+    
+    if not pdf_doc:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    # Soft delete
+    pdf_doc.is_active = False
+    db.commit()
+    
+    # Re-index remaining active PDFs for this subject
+    try:
+        from app.services.ai_indexing import extract_pdf_chunks
+        
+        remaining_pdfs = db.query(PDFDocument).filter(
+            PDFDocument.subject_id == allocation.subject_id,
+            PDFDocument.is_active == True,
+            PDFDocument.is_indexed == True
+        ).all()
+        
+        all_chunks = []
+        for pdf in remaining_pdfs:
+            full_path = get_full_path(pdf.file_path)
+            if full_path.exists():
+                chunks = extract_pdf_chunks(str(full_path), pdf.file_name)
+                all_chunks.extend(chunks)
+        
+        reindex_subject(allocation.subject_id, all_chunks)
+    except Exception as e:
+        print(f"Re-indexing failed after PDF deletion: {e}")
+    
+    return {"message": "PDF deleted successfully"}

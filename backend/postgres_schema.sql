@@ -402,6 +402,15 @@ CREATE TABLE IF NOT EXISTS system_settings (
     FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 
+CREATE TABLE class_notes
+(
+    id SERIAL PRIMARY KEY,
+    class_allocation_id INTEGER NOT NULL REFERENCES class_allocations(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    file_url VARCHAT(500) NOT NULL,
+    uploaded_at timestamp default CURRENT_TIMESTAMP
+);
+
 -- Default settings
 INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 ('ai_tutor_enabled', 'true', 'Enable/disable AI Tutor globally'),
