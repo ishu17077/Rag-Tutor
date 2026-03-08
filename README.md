@@ -7,6 +7,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 ### 👤 User Roles
 
 **Admin (Academic Controller)**
+
 - Create & manage Degrees, Departments, Semesters, Subjects
 - Assign teachers to subjects and allocate classes
 - Control semester progression (auto-updates student subjects)
@@ -14,6 +15,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - Toggle exam mode (disables AI during exams)
 
 **Student**
+
 - Auto-assigned subjects based on semester
 - AI Tutor with subject-specific RAG (Socratic teaching)
 - Quizzes with instant evaluation
@@ -22,6 +24,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - Direct chat with teachers
 
 **Teacher**
+
 - View allocated classes and students
 - Create MCQ quizzes with explanations
 - Post assignments and grade submissions
@@ -47,6 +50,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 ## 🛠️ Tech Stack
 
 ### Backend
+
 - **Python 3.11+**
 - **FastAPI** - Modern async web framework
 - **SQLAlchemy** - ORM for MySQL
@@ -54,6 +58,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - **Pydantic** - Data validation
 
 ### AI Stack
+
 - **Ollama** - Local LLM runtime
 - **Phi-3 Mini** - Microsoft's small, efficient LLM
 - **FAISS** - Vector similarity search
@@ -61,11 +66,13 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - **PyPDF** - PDF text extraction
 
 ### Frontend
+
 - **Next.js 14** - React framework
 - **Tailwind CSS** - Utility-first styling
 - **Lucide React** - Icons
 
 ### Database
+
 - **PostgreSQL 8.0+** - Single source of truth
 
 ## 📁 Project Structure
@@ -100,6 +107,7 @@ rag-tutor/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 1. **Python 3.11+**
 2. **Node.js 18+**
 3. **MySQL 8.0+**
@@ -165,17 +173,29 @@ npm run dev
 
 ### 5. Access Application
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+- **Frontend**: <http://localhost:3000>
+- **Backend API**: <http://localhost:8000>
+- **API Docs**: <http://localhost:8000/docs>
 
 ### Default Admin Login
-- **Email**: admin@college.edu
+
+- **Email**: <admin@college.edu>
 - **Password**: Admin@123
+
+### Default Teacher Login
+
+- **Email**: <teacher@college.edu>
+- **Password**: Teacher@123
+
+### Default Student Login
+
+- **Email**: <student@college.edu>
+- **Password**: Student@123
 
 ## 📚 API Endpoints
 
 ### Authentication
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/auth/login` | User login |
@@ -183,6 +203,7 @@ npm run dev
 | POST | `/api/auth/register/teacher` | Teacher registration (admin) |
 
 ### Admin
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | CRUD | `/api/admin/degrees` | Manage degrees |
@@ -193,6 +214,7 @@ npm run dev
 | PATCH | `/api/admin/settings` | Toggle exam mode |
 
 ### Student
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/student/profile` | Get profile |
@@ -200,6 +222,7 @@ npm run dev
 | GET | `/api/student/dashboard` | Dashboard stats |
 
 ### AI Tutor
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/ai/chat` | Query AI tutor |
@@ -208,6 +231,7 @@ npm run dev
 | POST | `/api/ai/subjects/{id}/pdfs` | Upload PDF (admin) |
 
 ### Quiz
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/quizzes/` | Create quiz (teacher) |
@@ -226,18 +250,23 @@ npm run dev
 ## 📝 Design Decisions
 
 ### Files on Disk, Paths in MySQL
+
 All file uploads (PDFs, assignments, profile pictures) are stored on disk with only the paths saved in MySQL. This is more efficient and scalable than storing blobs in the database.
 
 ### Per-Subject FAISS Indexes
+
 Each subject has its own isolated FAISS index. This allows:
+
 - Faster searches (smaller indexes)
 - Subject-specific context only
 - Independent re-indexing
 
 ### Soft Delete Pattern
+
 Academic records are never hard-deleted. All entities use `is_active = FALSE` for deactivation, preserving data integrity and audit trail.
 
 ### Socratic AI Tutor
+
 The AI is prompted to use the Socratic method - asking guiding questions before giving direct answers, encouraging critical thinking.
 
 ## 🎨 UI Themes
