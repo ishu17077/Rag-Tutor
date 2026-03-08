@@ -127,7 +127,7 @@ USE rag_tutor;
 SOURCE backend/schema.sql;
 ```
 
-### 2. Setup AW# & Model
+### 2. Setup AWS & Model
 
 ```bash
 # Visit AWS and set up a bedrock model and APNs.
@@ -281,4 +281,5 @@ MIT License - See LICENSE file for details.
 ---
 
 Built with ❤️ for academic excellence.
+
 
