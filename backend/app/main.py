@@ -52,7 +52,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000","https://13.220.237.124.nip.io", "http://13.220.237.124.nip.io", "https://rag-tutor.click", "http://rag-tutor.click"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
