@@ -35,7 +35,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 
 ### 🧠 AI Features
 
-- **Local AI Only** - Phi-3 Mini via Ollama (no cloud APIs)
+- **AI** - Amazon Nova Lite 2 Model for efficient and strong reasoning.
 - **Subject-wise RAG** - Isolated FAISS indexes per subject
 - **MiniLM Embeddings** - Efficient local embeddings
 - **Socratic Teaching** - Guided questioning approach
@@ -58,11 +58,12 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 - **SQLAlchemy** - ORM for MySQL
 - **JWT** - Secure authentication
 - **Pydantic** - Data validation
+- **boto3** - AWS Bedrock.
 
 ### AI Stack
 
-- **Ollama** - Local LLM runtime
-- **Phi-3 Mini** - Microsoft's small, efficient LLM
+- **Aws Bedrock** - Cloud LLM runtime
+- **Nova 3 Lite** - Amazon's small, efficient LLM
 - **FAISS** - Vector similarity search
 - **Sentence-Transformers** - MiniLM embeddings
 - **PyPDF** - PDF text extraction
@@ -75,7 +76,7 @@ A comprehensive academic web application with Admin, Student, and Teacher roles,
 
 ### Database
 
-- **PostgreSQL 8.0+** - Single source of truth
+- ** AWS PostgreSQL 8.0+** - Single source of truth
 
 ## 📁 Project Structure
 
@@ -112,9 +113,8 @@ rag-tutor/
 
 1. **Python 3.11+**
 2. **Node.js 18+**
-3. **MySQL 8.0+**
-4. **Ollama** - [Install Ollama](https://ollama.ai)
-
+3. **PostgreSQL 8.0+**
+4. **AWS** - AWS Bedrock Key
 ### 1. Setup Database
 
 ```bash
@@ -127,17 +127,12 @@ USE rag_tutor;
 SOURCE backend/schema.sql;
 ```
 
-### 2. Setup Ollama & Model
+### 2. Setup AW# & Model
 
 ```bash
-# Install Ollama (Windows/Mac/Linux)
-# Visit: https://ollama.ai/download
+# Visit AWS and set up a bedrock model and APNs.
 
-# Pull Phi-3 Mini model
-ollama pull phi3:mini
-
-# Start Ollama (runs on http://localhost:11434)
-ollama serve
+# Select Nova lite 2 model and copy ARN and AWS Bedrock Bearer Token.
 ```
 
 ### 3. Setup Backend
@@ -286,3 +281,4 @@ MIT License - See LICENSE file for details.
 ---
 
 Built with ❤️ for academic excellence.
+
