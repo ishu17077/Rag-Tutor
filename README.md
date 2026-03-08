@@ -1,4 +1,6 @@
 # RAG Tutor - Academic ERP System
+[Access Project](https://rag-tutor.click)
+
 
 A comprehensive academic web application with Admin, Student, and Teacher roles, featuring AI-powered tutoring with local LLMs.
 
