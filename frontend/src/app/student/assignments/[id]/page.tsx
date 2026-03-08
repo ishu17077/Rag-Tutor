@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { ArrowLeft, Clock, FileText, Upload, Download, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface AssignmentDetail {
@@ -27,26 +29,19 @@ export default function StudentAssignmentDetail({ params }: { params: { id: stri
     const router = useRouter();
     const { id } = params;
 
-    const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [file, setFile] = useState<File | null>(null);
-    const [submitting, setSubmitting] = useState(false);
+    const { data: assignmentData, isLoading: loading, error } = useSWR<AssignmentDetail>(id ? `/api/assignments/student/${id}` : null, fetcher);
+    const assignment = assignmentData || null;
 
     useEffect(() => {
-        const fetchDetail = async () => {
-            try {
-                const response = await api.get(`/api/assignments/student/${id}`);
-                setAssignment(response.data);
-            } catch (error) {
-                console.error('Failed to load assignment:', error);
-                alert('Failed to load assignment details');
-                router.push('/student/assignments');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDetail();
-    }, [id]);
+        if (error) {
+            console.error('Failed to load assignment:', error);
+            alert('Failed to load assignment details');
+            router.push('/student/assignments');
+        }
+    }, [error, router]);
+
+    const [file, setFile] = useState<File | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {

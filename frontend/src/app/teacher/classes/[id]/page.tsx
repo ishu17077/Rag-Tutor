@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { ArrowLeft, Users, Search, Mail, Hash, FileText, Download, Plus, X, File } from 'lucide-react';
+import { ArrowLeft, Users, Search, Mail, Hash, FileText, X, Brain, Upload, Trash2, CheckCircle2, Clock, BookOpenCheck } from 'lucide-react';
 
 
 interface Student {
@@ -13,11 +13,15 @@ interface Student {
     roll_number: string;
 }
 
-interface ClassNote {
+
+
+interface StudyMaterialPDF {
     id: number;
-    title: string;
-    file_url: string;
-    uploaded_at: string;
+    file_name: string;
+    file_size: number;
+    is_indexed: boolean;
+    indexed_at: string | null;
+    created_at: string;
 }
 
 export default function ClassDetails({ params }: { params: { id: string } }) {
@@ -25,19 +29,20 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
     const { id } = params;
 
     const [students, setStudents] = useState<Student[]>([]);
-    const [notes, setNotes] = useState<ClassNote[]>([]);
+
+    const [pdfs, setPdfs] = useState<StudyMaterialPDF[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'students' | 'notes'>('students');
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [newNoteTitle, setNewNoteTitle] = useState('');
-    const [newNoteFile, setNewNoteFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
+    const [isPdfUploadModalOpen, setIsPdfUploadModalOpen] = useState(false);
+    const [newPdfFile, setNewPdfFile] = useState<File | null>(null);
+    const [pdfUploading, setPdfUploading] = useState(false);
+    const [deletingPdfId, setDeletingPdfId] = useState<number | null>(null);
 
     useEffect(() => {
         if (id) {
             fetchStudents();
-            fetchNotes(); // Fetch both initially or when tab changes? Fetching both is fine for now.
+            fetchPdfs();
         }
     }, [id]);
 
@@ -52,39 +57,68 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
         }
     };
 
-    const fetchNotes = async () => {
+
+
+    const fetchPdfs = async () => {
         try {
-            const response = await api.get(`/api/teacher/classes/${id}/notes`);
-            setNotes(response.data);
+            const response = await api.get(`/api/teacher/classes/${id}/pdfs`);
+            setPdfs(response.data);
         } catch (error) {
-            console.error('Failed to fetch notes:', error);
+            console.error('Failed to fetch study material PDFs:', error);
         }
     };
 
-    const handleFileUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newNoteFile || !newNoteTitle) return;
 
-        setUploading(true);
+
+    const handlePdfUpload = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newPdfFile) return;
+
+        setPdfUploading(true);
         const formData = new FormData();
-        formData.append('file', newNoteFile);
+        formData.append('file', newPdfFile);
 
         try {
-            await api.post(`/api/teacher/classes/${id}/notes?title=${encodeURIComponent(newNoteTitle)}`, formData, {
+            const response = await api.post(`/api/teacher/classes/${id}/pdfs`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            setNewNoteTitle('');
-            setNewNoteFile(null);
-            setIsUploadModalOpen(false);
-            fetchNotes();
+            setNewPdfFile(null);
+            setIsPdfUploadModalOpen(false);
+            fetchPdfs();
+            if (response.data.is_indexed) {
+                alert('✅ PDF uploaded and indexed successfully! Students can now ask AI about this content.');
+            } else {
+                alert('⚠️ PDF uploaded but indexing failed. The content may not be available for AI queries.');
+            }
         } catch (error) {
-            console.error('Failed to upload note:', error);
-            alert('Failed to upload note');
+            console.error('Failed to upload PDF:', error);
+            alert('Failed to upload PDF');
         } finally {
-            setUploading(false);
+            setPdfUploading(false);
         }
+    };
+
+    const handleDeletePdf = async (pdfId: number) => {
+        if (!confirm('Are you sure you want to delete this study material? Students will no longer be able to ask AI about its content.')) return;
+
+        setDeletingPdfId(pdfId);
+        try {
+            await api.delete(`/api/teacher/classes/${id}/pdfs/${pdfId}`);
+            fetchPdfs();
+        } catch (error) {
+            console.error('Failed to delete PDF:', error);
+            alert('Failed to delete PDF');
+        } finally {
+            setDeletingPdfId(null);
+        }
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
     const filteredStudents = students.filter(student =>
@@ -115,11 +149,11 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
                 </div>
                 {activeTab === 'notes' && (
                     <button
-                        onClick={() => setIsUploadModalOpen(true)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-teacher-primary text-white rounded-lg hover:bg-teacher-secondary transition-colors"
+                        onClick={() => setIsPdfUploadModalOpen(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
                     >
-                        <Plus className="w-4 h-4" />
-                        <span>Upload Note</span>
+                        <Upload className="w-4 h-4" />
+                        <span>Upload PDF for AI</span>
                     </button>
                 )}
             </div>
@@ -136,18 +170,24 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
                         `}
                     >
-                        Students ({students.length})
+                        <span className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            Students ({students.length})
+                        </span>
                     </button>
                     <button
                         onClick={() => setActiveTab('notes')}
                         className={`
                             whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
                             ${activeTab === 'notes'
-                                ? 'border-teacher-primary text-teacher-primary'
+                                ? 'border-purple-600 text-purple-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
                         `}
                     >
-                        Class Notes ({notes.length})
+                        <span className="flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            Class Notes ({pdfs.length})
+                        </span>
                     </button>
                 </nav>
             </div>
@@ -217,101 +257,141 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {notes.length === 0 ? (
-                        <div className="col-span-full text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
-                            <FileText className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                            <h3 className="text-lg font-medium text-gray-900">No notes uploaded</h3>
-                            <p className="text-gray-500 mt-1">Upload notes to share with your students</p>
+                /* Class Notes Tab */
+                <div className="space-y-4">
+                    {/* Info Banner */}
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-purple-100 rounded-lg shrink-0">
+                                <BookOpenCheck className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-purple-900 text-sm">AI-Powered Study Materials</h3>
+                                <p className="text-purple-700 text-xs mt-1">
+                                    Upload PDF notes here to power the AI Tutor for your students. The AI will analyze these PDFs and answer student questions based on the content. If a topic isn't covered in the uploaded materials, the AI will let students know.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {pdfs.length === 0 ? (
+                        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <Brain className="h-12 w-12 mx-auto text-purple-300 mb-3" />
+                            <h3 className="text-lg font-medium text-gray-900">No class notes uploaded</h3>
+                            <p className="text-gray-500 mt-1 text-sm">Upload PDFs to enable AI-powered tutoring for your students</p>
                             <button
-                                onClick={() => setIsUploadModalOpen(true)}
-                                className="mt-4 px-4 py-2 bg-teacher-primary text-white text-sm rounded-lg hover:bg-teacher-secondary transition-colors"
+                                onClick={() => setIsPdfUploadModalOpen(true)}
+                                className="mt-4 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
                             >
-                                Upload First Note
+                                Upload First PDF
                             </button>
                         </div>
                     ) : (
-                        notes.map((note) => (
-                            <div key={note.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="p-2 bg-blue-50 rounded-lg">
-                                            <FileText className="w-6 h-6 text-teacher-primary" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {pdfs.map((pdf) => (
+                                <div key={pdf.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                            <div className={`p-2 rounded-lg shrink-0 ${pdf.is_indexed ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                                                <FileText className={`w-6 h-6 ${pdf.is_indexed ? 'text-green-600' : 'text-yellow-600'}`} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="font-medium text-gray-800 truncate" title={pdf.file_name}>
+                                                    {pdf.file_name}
+                                                </h3>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs text-gray-400">
+                                                        {formatFileSize(pdf.file_size)}
+                                                    </span>
+                                                    <span className="text-gray-300">•</span>
+                                                    <span className="text-xs text-gray-400">
+                                                        {new Date(pdf.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-medium text-gray-800">{note.title}</h3>
-                                            <p className="text-xs text-gray-500">
-                                                {new Date(note.uploaded_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
+                                        <button
+                                            onClick={() => handleDeletePdf(pdf.id)}
+                                            disabled={deletingPdfId === pdf.id}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0 disabled:opacity-50"
+                                            title="Delete"
+                                        >
+                                            {deletingPdfId === pdf.id ? (
+                                                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-4 h-4" />
+                                            )}
+                                        </button>
                                     </div>
-                                    <a
-                                        href={`http://localhost:8000${note.file_url}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-2 text-gray-400 hover:text-teacher-primary hover:bg-gray-50 rounded-lg transition-all"
-                                        title="Download"
-                                    >
-                                        <Download className="w-5 h-5" />
-                                    </a>
+                                    <div className="mt-3 pt-3 border-t border-gray-100">
+                                        {pdf.is_indexed ? (
+                                            <div className="flex items-center text-green-600 text-xs font-medium">
+                                                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                                                Indexed for AI — Students can ask about this
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center text-yellow-600 text-xs font-medium">
+                                                <Clock className="w-3.5 h-3.5 mr-1.5" />
+                                                Indexing pending — Not available for AI yet
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
 
-            {/* Upload Modal */}
-            {isUploadModalOpen && (
+            {/* Upload PDF for AI Modal */}
+            {isPdfUploadModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 m-4 animate-scale-in">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Upload Class Note</h2>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 rounded-lg">
+                                    <Brain className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800">Upload Class Note (PDF)</h2>
+                            </div>
                             <button
-                                onClick={() => setIsUploadModalOpen(false)}
+                                onClick={() => setIsPdfUploadModalOpen(false)}
                                 className="text-gray-400 hover:text-gray-600 transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleFileUpload} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Title
-                                </label>
-                                <input
-                                    type="text"
-                                    value={newNoteTitle}
-                                    onChange={(e) => setNewNoteTitle(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teacher-primary/20 focus:border-teacher-primary"
-                                    placeholder="e.g., Chapter 1 Notes"
-                                    required
-                                />
-                            </div>
+                        <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 mb-5">
+                            <p className="text-purple-700 text-xs">
+                                📚 This PDF will be analyzed by AI. Students will be able to ask questions and get answers from this material.
+                            </p>
+                        </div>
 
+                        <form onSubmit={handlePdfUpload} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    File
+                                    PDF File
                                 </label>
-                                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 hover:border-teacher-primary/50 transition-colors bg-gray-50">
+                                <div className="border-2 border-dashed border-purple-200 rounded-lg p-6 hover:border-purple-400 transition-colors bg-purple-50/50">
                                     <input
                                         type="file"
-                                        onChange={(e) => setNewNoteFile(e.target.files?.[0] || null)}
+                                        accept=".pdf"
+                                        onChange={(e) => setNewPdfFile(e.target.files?.[0] || null)}
                                         className="hidden"
-                                        id="note-file"
+                                        id="pdf-file"
                                         required
                                     />
                                     <label
-                                        htmlFor="note-file"
+                                        htmlFor="pdf-file"
                                         className="flex flex-col items-center cursor-pointer"
                                     >
-                                        <File className="w-8 h-8 text-gray-400 mb-2" />
+                                        <Upload className="w-8 h-8 text-purple-400 mb-2" />
                                         <span className="text-sm text-gray-600 font-medium">
-                                            {newNoteFile ? newNoteFile.name : 'Click to select file'}
+                                            {newPdfFile ? newPdfFile.name : 'Click to select PDF'}
                                         </span>
                                         <span className="text-xs text-gray-400 mt-1">
-                                            PDF, DOC, PPT, Images
+                                            Only PDF files (max 50MB)
                                         </span>
                                     </label>
                                 </div>
@@ -320,23 +400,26 @@ export default function ClassDetails({ params }: { params: { id: string } }) {
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(false)}
+                                    onClick={() => setIsPdfUploadModalOpen(false)}
                                     className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={uploading}
-                                    className="px-4 py-2 bg-teacher-primary text-white rounded-lg hover:bg-teacher-secondary transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                    disabled={pdfUploading || !newPdfFile}
+                                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-md"
                                 >
-                                    {uploading ? (
+                                    {pdfUploading ? (
                                         <>
                                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                            Uploading...
+                                            Uploading & Indexing...
                                         </>
                                     ) : (
-                                        'Upload Note'
+                                        <>
+                                            <Brain className="w-4 h-4 mr-2" />
+                                            Upload & Index
+                                        </>
                                     )}
                                 </button>
                             </div>

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { Plus, Clock, FileText, Calendar, Edit, Trash2, Users } from 'lucide-react';
 
 interface Quiz {
@@ -23,36 +25,21 @@ interface Subject {
 
 export default function TeacherQuizzes() {
     const router = useRouter();
-    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-    const [subjects, setSubjects] = useState<Record<number, Subject>>({});
-    const [loading, setLoading] = useState(true);
+    const { data: quizzesData, isLoading: loadingQuizzes, mutate: mutateQuizzes } = useSWR<Quiz[]>('/api/quizzes/teacher', fetcher);
+    const { data: subjectsData, isLoading: loadingSubjects } = useSWR<Subject[]>('/api/teacher/subjects', fetcher);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // Compute derived state consistently without triggering re-renders
+    const quizzes = quizzesData || [];
+    const loading = loadingQuizzes || loadingSubjects;
 
-    const fetchData = async () => {
-        try {
-            const [quizzesRes, subjectsRes] = await Promise.all([
-                api.get('/api/quizzes/teacher'),
-                api.get('/api/teacher/subjects')
-            ]);
-
-            setQuizzes(quizzesRes.data);
-
-            // Create subject map for easy lookup
-            const subjectMap: Record<number, Subject> = {};
-            subjectsRes.data.forEach((s: Subject) => {
-                subjectMap[s.id] = s;
-            });
-            setSubjects(subjectMap);
-
-        } catch (error) {
-            console.error('Failed to fetch data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Create subject map for easy lookup
+    const subjectMap: Record<number, Subject> = {};
+    if (subjectsData) {
+        subjectsData.forEach((s: Subject) => {
+            subjectMap[s.id] = s;
+        });
+    }
+    const subjects = subjectMap;
 
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) {
@@ -61,13 +48,13 @@ export default function TeacherQuizzes() {
 
         try {
             // Optimistic update
-            setQuizzes(quizzes.filter(q => q.id !== id));
+            mutateQuizzes(quizzes.filter(q => q.id !== id), false);
             await api.delete(`/api/quizzes/teacher/${id}`);
-            // alert('Quiz deleted successfully'); // Optional: show success message
+            mutateQuizzes(); // Revalidate
         } catch (error) {
             console.error('Failed to delete quiz:', error);
             alert('Failed to delete quiz');
-            fetchData(); // Revert state on error
+            mutateQuizzes(); // Revert state on error
         }
     };
 

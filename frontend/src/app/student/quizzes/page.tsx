@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
+import { useMemo } from 'react';
 import { Clock, FileText, CheckCircle, PlayCircle, Award } from 'lucide-react';
 
 interface Quiz {
@@ -25,35 +28,22 @@ interface Subject {
 
 export default function StudentQuizzes() {
     const router = useRouter();
-    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-    const [subjects, setSubjects] = useState<Record<number, Subject>>({});
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [quizzesRes, subjectsRes] = await Promise.all([
-                    api.get('/api/quizzes/student'),
-                    api.get('/api/student/subjects')
-                ]);
+    const { data: quizzesData, isLoading: loadingQuizzes } = useSWR<Quiz[]>('/api/quizzes/student', fetcher);
+    const { data: subjectsData, isLoading: loadingSubjects } = useSWR<{ subjects: Subject[] }>('/api/student/subjects', fetcher);
 
-                setQuizzes(quizzesRes.data);
+    const loading = loadingQuizzes || loadingSubjects;
+    const quizzes = quizzesData || [];
 
-                const subjectMap: Record<number, Subject> = {};
-                subjectsRes.data.forEach((s: Subject) => {
-                    subjectMap[s.id] = s;
-                });
-                setSubjects(subjectMap);
-
-            } catch (error) {
-                console.error('Failed to fetch quizzes:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
+    const subjects = useMemo(() => {
+        const map: Record<number, Subject> = {};
+        if (subjectsData?.subjects) {
+            subjectsData.subjects.forEach(s => {
+                map[s.id] = s;
+            });
+        }
+        return map;
+    }, [subjectsData]);
 
     const getStatusBadge = (quiz: Quiz) => {
         if (quiz.is_completed) {
@@ -117,8 +107,8 @@ export default function StudentQuizzes() {
                                 <button
                                     onClick={() => router.push(`/student/quizzes/${quiz.id}`)}
                                     className={`px-6 py-2 rounded-lg transition-colors font-medium whitespace-nowrap flex items-center ${quiz.is_completed
-                                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            : 'bg-teacher-primary text-white hover:bg-opacity-90'
+                                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        : 'bg-teacher-primary text-white hover:bg-opacity-90'
                                         }`}
                                 >
                                     {quiz.is_completed ? (

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Search } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Student {
     id: number;
@@ -18,24 +20,9 @@ interface Student {
 }
 
 export default function AdminStudents() {
-    const [students, setStudents] = useState<Student[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: studentsData, isLoading: loading } = useSWR<Student[]>('/api/admin/students-full', fetcher);
+    const students = studentsData || [];
     const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        fetchStudents();
-    }, []);
-
-    const fetchStudents = async () => {
-        try {
-            const response = await api.get('/api/admin/students-full');
-            setStudents(response.data);
-        } catch (error) {
-            console.error('Failed to fetch students:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const filteredStudents = students.filter(s =>
         s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

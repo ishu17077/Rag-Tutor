@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { Book, FileText, Calendar, Clock, Download } from 'lucide-react';
 
 interface Subject {
@@ -13,23 +15,8 @@ interface Subject {
 }
 
 export default function TeacherSubjects() {
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-
-    const fetchSubjects = async () => {
-        try {
-            const response = await api.get('/api/teacher/subjects');
-            setSubjects(response.data);
-        } catch (error) {
-            console.error('Failed to fetch subjects:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: subjectsData, isLoading: loading } = useSWR<Subject[]>('/api/teacher/subjects', fetcher);
+    const subjects = subjectsData || [];
 
     if (loading) {
         return (

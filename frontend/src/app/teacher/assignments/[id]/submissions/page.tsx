@@ -64,12 +64,19 @@ export default function AssignmentSubmissions({ params }: { params: { id: string
     const getDownloadUrl = (url: string) => {
         if (!url) return '#';
         if (url.startsWith('http')) return url;
-        // Assuming backend serves uploads at /uploads and API is at http://localhost:8000
-        // In production, this should use the environment variable
-        const baseUrl = 'http://localhost:8000/uploads';
-        // Remove leading slash if present to avoid double slashes with baseUrl
+
+        // Use environment variable or fallback to localhost
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+        // If the URL already contains /uploads, just prepend the API URL
+        if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+            const cleanPath = url.startsWith('/') ? url : `/${url}`;
+            return `${apiUrl}${cleanPath}`;
+        }
+
+        // Otherwise, prepend /uploads
         const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-        return `${baseUrl}/${cleanPath}`;
+        return `${apiUrl}/uploads/${cleanPath}`;
     };
 
     const openGradingModal = (submission: Submission) => {

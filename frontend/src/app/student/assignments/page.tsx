@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
+import { useMemo } from 'react';
 import { Clock, FileText, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 
 interface Assignment {
@@ -27,37 +30,22 @@ interface Subject {
 
 export default function StudentAssignments() {
     const router = useRouter();
-    const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [subjects, setSubjects] = useState<Record<number, Subject>>({});
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch student assignments and subjects
-                const [assignmentsRes, subjectsRes] = await Promise.all([
-                    api.get('/api/assignments/student'),
-                    api.get('/api/student/subjects')
-                ]);
+    const { data: assignmentsData, isLoading: loadingAssignments } = useSWR<Assignment[]>('/api/assignments/student', fetcher);
+    const { data: subjectsData, isLoading: loadingSubjects } = useSWR<{ subjects: Subject[] }>('/api/student/subjects', fetcher);
 
-                setAssignments(assignmentsRes.data);
+    const loading = loadingAssignments || loadingSubjects;
+    const assignments = assignmentsData || [];
 
-                // Map subjects
-                const subjectMap: Record<number, Subject> = {};
-                subjectsRes.data.forEach((s: Subject) => {
-                    subjectMap[s.id] = s;
-                });
-                setSubjects(subjectMap);
-
-            } catch (error) {
-                console.error('Failed to fetch assignments:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
+    const subjects = useMemo(() => {
+        const map: Record<number, Subject> = {};
+        if (subjectsData?.subjects) {
+            subjectsData.subjects.forEach(s => {
+                map[s.id] = s;
+            });
+        }
+        return map;
+    }, [subjectsData]);
 
     const getStatusBadge = (assignment: Assignment) => {
         if (assignment.has_submitted) {

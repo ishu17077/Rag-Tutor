@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { BookOpen, User } from 'lucide-react';
 import api from '@/lib/api';
 
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
+
 interface Subject {
     id: number;
     name: string;
@@ -17,30 +20,14 @@ interface Subject {
 }
 
 export default function MySubjects() {
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [semester, setSemester] = useState<number>(0);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading: loading } = useSWR<{ subjects: Subject[], semester_number: number }>('/api/student/subjects', fetcher);
+    const subjects: Subject[] = data?.subjects || [];
+    const semester: number = data?.semester_number || 0;
 
     // Modal State
     const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
     const [showModal, setShowModal] = useState(false);
     const router = require('next/navigation').useRouter();
-
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-
-    const fetchSubjects = async () => {
-        try {
-            const response = await api.get('/api/student/subjects');
-            setSubjects(response.data.subjects);
-            setSemester(response.data.semester_number);
-        } catch (error) {
-            console.error('Failed to fetch subjects:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleTeacherClick = (teacher: any, subject: Subject) => {
         setSelectedTeacher({ ...teacher, subject_id: subject.id, subject_name: subject.name });

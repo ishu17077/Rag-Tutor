@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Brain, Send, BookOpen, AlertCircle, RefreshCcw } from 'lucide-react';
+import { Brain, Send, BookOpen, AlertCircle, RefreshCcw, Paperclip, X } from 'lucide-react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import api from '@/lib/api';
 
 interface Subject {
@@ -15,6 +21,8 @@ interface Subject {
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    file_url?: string;
+    file_type?: string;
     citations?: string[];
 }
 
@@ -24,43 +32,39 @@ interface AIStatus {
 }
 
 export default function AITutorPage() {
-    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const { data: aiStatus } = useSWR<AIStatus>('/api/ai/status', fetcher);
+    const { data: subjectsData } = useSWR<Subject[]>('/api/ai/subjects', fetcher);
+    const subjects = subjectsData || [];
+
     const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
-    const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [rateLimitInfo, setRateLimitInfo] = useState({ remaining: 10, limited: false });
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        fetchStatus();
-        fetchSubjects();
-    }, []);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            let encoded = reader.result?.toString().replace(/^data:(.*,)?/, '') || '';
+            if ((encoded.length % 4) > 0) {
+                encoded += '='.repeat(4 - (encoded.length % 4));
+            }
+            resolve(encoded);
+        };
+        reader.onerror = error => reject(error);
+    });
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
-
-    const fetchStatus = async () => {
-        try {
-            const response = await api.get('/api/ai/status');
-            setAiStatus(response.data);
-        } catch (error) {
-            console.error('Failed to fetch AI status:', error);
-        }
-    };
-
-    const fetchSubjects = async () => {
-        try {
-            const response = await api.get('/api/ai/subjects');
-            setSubjects(response.data);
-        } catch (error) {
-            console.error('Failed to fetch subjects:', error);
-        }
-    };
 
     const fetchRateLimit = async () => {
         try {
@@ -75,19 +79,34 @@ export default function AITutorPage() {
     };
 
     const handleSend = async () => {
-        if (!input.trim() || !selectedSubject || loading) return;
+        if ((!input.trim() && !selectedFile) || !selectedSubject || loading) return;
 
-        const userMessage: Message = { role: 'user', content: input };
+        // Optimistic UI update
+        const userMessage: Message = {
+            role: 'user',
+            content: input || '📎 Attachment',
+            file_url: selectedFile ? URL.createObjectURL(selectedFile) : undefined,
+            file_type: selectedFile ? selectedFile.name.split('.').pop()?.toLowerCase() : undefined
+        };
         setMessages(prev => [...prev, userMessage]);
+
+        const payload: any = {
+            subject_id: selectedSubject.id,
+            question: input || '📎 Attachment',
+            session_id: sessionId
+        };
+
+        if (selectedFile) {
+            payload.file_name = selectedFile.name;
+            payload.file_bytes = await toBase64(selectedFile);
+        }
+
         setInput('');
+        setSelectedFile(null);
         setLoading(true);
 
         try {
-            const response = await api.post('/api/ai/chat', {
-                subject_id: selectedSubject.id,
-                question: input,
-                session_id: sessionId
-            });
+            const response = await api.post('/api/ai/chat', payload);
 
             const aiMessage: Message = {
                 role: 'assistant',
@@ -222,7 +241,7 @@ export default function AITutorPage() {
 
                 <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500">
-                        {rateLimitInfo.remaining}/10 queries left
+                        {rateLimitInfo.remaining}/20 queries left
                     </span>
                     <button
                         onClick={() => {
@@ -258,7 +277,27 @@ export default function AITutorPage() {
 
                 {messages.map((message, index) => (
                     <div key={index} className={`ai-message ${message.role}`}>
-                        <div className="whitespace-pre-wrap">{message.content}</div>
+                        <div className={`prose prose-sm max-w-none ${message.role === 'user' ? 'prose-invert' : 'prose-gray'} break-words whitespace-pre-wrap`}>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                            >
+                                {message.content}
+                            </ReactMarkdown>
+                        </div>
+                        {message.file_url && (
+                            <div className="mt-2 text-left">
+                                {['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(message.file_type || '') ? (
+                                    <a href={message.file_url.startsWith('blob:') ? message.file_url : `${API_URL}/uploads/${message.file_url}`} target="_blank" rel="noreferrer">
+                                        <img src={message.file_url.startsWith('blob:') ? message.file_url : `${API_URL}/uploads/${message.file_url}`} alt="attachment" className="max-w-xs rounded-lg shadow-sm w-full object-cover max-h-48" />
+                                    </a>
+                                ) : (
+                                    <a href={message.file_url.startsWith('blob:') ? message.file_url : `${API_URL}/uploads/${message.file_url}`} target="_blank" rel="noreferrer" className={`flex items-center gap-2 text-xs p-2 rounded-lg transition ${message.role === 'user' ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-black/5 hover:bg-black/10 text-gray-700'}`}>
+                                        <Paperclip className="w-4 h-4" /> Download {message.file_type?.toUpperCase()}
+                                    </a>
+                                )}
+                            </div>
+                        )}
                         {message.citations && message.citations.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-white/20">
                                 <p className="text-xs font-medium mb-1">📚 Sources:</p>
@@ -284,19 +323,41 @@ export default function AITutorPage() {
             </div>
 
             {/* Input */}
-            <div className="mt-4 flex gap-3">
-                <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ask a question..."
-                    className="flex-1 input-student"
-                    disabled={loading || rateLimitInfo.limited}
-                />
+            <div className="mt-4 flex gap-3 relative">
+                {selectedFile && (
+                    <div className="absolute -top-12 left-0 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 shadow-sm z-10">
+                        <Paperclip className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="max-w-[150px] truncate text-gray-700 font-medium">{selectedFile.name}</span>
+                        <button type="button" onClick={() => setSelectedFile(null)} className="hover:text-red-500 ml-1 bg-gray-100 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                    </div>
+                )}
+                <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex-1 items-center">
+                    <input
+                        type="file"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-3 text-gray-400 hover:text-student-primary hover:bg-gray-50 transition-colors border-r border-gray-100"
+                    >
+                        <Paperclip className="w-5 h-5" />
+                    </button>
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask a question or upload an image..."
+                        className="flex-1 px-4 py-3 focus:outline-none"
+                        disabled={loading || rateLimitInfo.limited}
+                    />
+                </div>
                 <button
                     onClick={handleSend}
-                    disabled={!input.trim() || loading || rateLimitInfo.limited}
+                    disabled={(!input.trim() && !selectedFile) || loading || rateLimitInfo.limited}
                     className="btn-student px-6 flex items-center gap-2 disabled:opacity-50"
                 >
                     <Send className="w-5 h-5" />

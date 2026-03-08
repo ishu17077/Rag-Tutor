@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Users, BookOpen, ClipboardList, FileText, MessageSquare, BarChart3 } from 'lucide-react';
 import api from '@/lib/api';
+
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface DashboardData {
     teacher_name: string;
@@ -16,23 +20,7 @@ interface DashboardData {
 }
 
 export default function TeacherDashboard() {
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchDashboard();
-    }, []);
-
-    const fetchDashboard = async () => {
-        try {
-            const response = await api.get('/api/teacher/dashboard');
-            setData(response.data);
-        } catch (error) {
-            console.error('Failed to fetch dashboard:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data, isLoading: loading } = useSWR<DashboardData>('/api/teacher/dashboard', fetcher);
 
     if (loading) {
         return (
@@ -122,22 +110,22 @@ export default function TeacherDashboard() {
                 <div className="card">
                     <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
                     <div className="grid grid-cols-2 gap-4">
-                        <a href="/teacher/quizzes/create" className="p-4 bg-teacher-primary/5 rounded-lg hover:bg-teacher-primary/10 transition-colors text-center group">
+                        <Link href="/teacher/quizzes/create" className="p-4 bg-teacher-primary/5 rounded-lg hover:bg-teacher-primary/10 transition-colors text-center group">
                             <ClipboardList className="w-8 h-8 text-teacher-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-sm font-medium">Create Quiz</span>
-                        </a>
-                        <a href="/teacher/assignments/create" className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center group">
+                        </Link>
+                        <Link href="/teacher/assignments/create" className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center group">
                             <FileText className="w-8 h-8 text-orange-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-sm font-medium">Post Assignment</span>
-                        </a>
-                        <a href="/teacher/classes" className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-center group">
+                        </Link>
+                        <Link href="/teacher/classes" className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-center group">
                             <Users className="w-8 h-8 text-blue-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-sm font-medium">View Classes</span>
-                        </a>
-                        <a href="/teacher/analytics" className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-center group">
+                        </Link>
+                        <Link href="/teacher/analytics" className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-center group">
                             <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-sm font-medium">Class Analytics</span>
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
@@ -149,12 +137,12 @@ export default function TeacherDashboard() {
                         <p className="text-sm text-gray-600 mb-4">
                             View aggregated weak topics across your classes to identify areas that need more focus.
                         </p>
-                        <a
+                        <Link
                             href="/teacher/analytics"
                             className="inline-block px-6 py-2 bg-teacher-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
                         >
                             View Analytics
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

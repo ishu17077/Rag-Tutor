@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Search, Plus, BookOpen, X, User as UserIcon } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Teacher {
     id: number;
@@ -24,13 +26,21 @@ interface Semester { id: number; number: number; degree_id: number; }
 interface Subject { id: number; name: string; code: string; degree_id: number; department_id: number; semester_id: number; }
 
 export default function AdminTeachers() {
-    const [teachers, setTeachers] = useState<Teacher[]>([]);
-    const [degrees, setDegrees] = useState<Degree[]>([]);
-    const [departments, setDepartments] = useState<Department[]>([]);
-    const [semesters, setSemesters] = useState<Semester[]>([]);
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: teachersData, isLoading: loadingTeachers, mutate: mutateTeachers } = useSWR<Teacher[]>('/api/admin/teachers-full', fetcher);
+    const { data: degreesData, isLoading: loadingDegrees } = useSWR<Degree[]>('/api/admin/degrees', fetcher);
+    const { data: departmentsData, isLoading: loadingDepartments } = useSWR<Department[]>('/api/admin/departments', fetcher);
+    const { data: semestersData, isLoading: loadingSemesters } = useSWR<Semester[]>('/api/admin/semesters', fetcher);
+    const { data: subjectsData, isLoading: loadingSubjects } = useSWR<Subject[]>('/api/admin/subjects', fetcher);
+
+    const teachers = teachersData || [];
+    const degrees = degreesData || [];
+    const departments = departmentsData || [];
+    const semesters = semestersData || [];
+    const subjects = subjectsData || [];
+
+    const loading = loadingTeachers || loadingDegrees || loadingDepartments || loadingSemesters || loadingSubjects;
     const [searchTerm, setSearchTerm] = useState('');
+    const [isAssigning, setIsAssigning] = useState(false);
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -42,31 +52,6 @@ export default function AdminTeachers() {
         subject_id: '',
         academic_year: '2025-2026'
     });
-
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const [teachersRes, degreesRes, deptsRes, semsRes, subsRes] = await Promise.all([
-                api.get('/api/admin/teachers-full'),
-                api.get('/api/admin/degrees'),
-                api.get('/api/admin/departments'),
-                api.get('/api/admin/semesters'),
-                api.get('/api/admin/subjects')
-            ]);
-            setTeachers(teachersRes.data);
-            setDegrees(degreesRes.data);
-            setDepartments(deptsRes.data);
-            setSemesters(semsRes.data);
-            setSubjects(subsRes.data);
-        } catch (error) {
-            console.error('Failed to fetch data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleAssignClick = (teacher: Teacher) => {
         setSelectedTeacher(teacher);
@@ -82,9 +67,21 @@ export default function AdminTeachers() {
 
     const handleAllocate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedTeacher) return;
+        if (!selectedTeacher || isAssigning) return;
 
+        setIsAssigning(true);
         try {
+            const selectedSubject = subjects.find(s => s.id === parseInt(formData.subject_id));
+            if (selectedSubject) {
+                // Optimistic Update
+                const updatedTeachers = teachers.map(t =>
+                    t.id === selectedTeacher.id
+                        ? { ...t, subjects: [...t.subjects, selectedSubject.name] }
+                        : t
+                );
+                mutateTeachers(updatedTeachers, false);
+            }
+
             await api.post('/api/admin/allocations', {
                 teacher_id: selectedTeacher.profile_id,
                 subject_id: parseInt(formData.subject_id),
@@ -94,15 +91,15 @@ export default function AdminTeachers() {
                 academic_year: formData.academic_year
             });
 
-            // Refresh teachers to show new subject
-            const teachersRes = await api.get('/api/admin/teachers-full');
-            setTeachers(teachersRes.data);
-
+            mutateTeachers(); // revalidate
             setShowModal(false);
             alert('Subject assigned successfully!');
         } catch (error: any) {
             console.error(error);
             alert(error.response?.data?.detail || 'Failed to assign subject');
+            mutateTeachers();
+        } finally {
+            setIsAssigning(false);
         }
     };
 
@@ -327,9 +324,11 @@ export default function AdminTeachers() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-admin-primary text-white rounded-lg hover:bg-opacity-90"
+                                    disabled={isAssigning}
+                                    className={`flex-1 px-4 py-2 bg-admin-primary text-white rounded-lg transition-opacity ${isAssigning ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
+                                        }`}
                                 >
-                                    Assign
+                                    {isAssigning ? 'Assigning...' : 'Assign'}
                                 </button>
                             </div>
                         </form>

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { Plus, Clock, FileText, Calendar, Edit, Trash2, Users, Download } from 'lucide-react';
 
 interface Assignment {
@@ -25,36 +27,20 @@ interface Subject {
 
 export default function TeacherAssignments() {
     const router = useRouter();
-    const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [subjects, setSubjects] = useState<Record<number, Subject>>({});
-    const [loading, setLoading] = useState(true);
+    const { data: assignmentsData, isLoading: loadingAssignments, mutate: mutateAssignments } = useSWR<Assignment[]>('/api/assignments/teacher', fetcher);
+    const { data: subjectsData, isLoading: loadingSubjects } = useSWR<Subject[]>('/api/teacher/subjects', fetcher);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    const assignments = assignmentsData || [];
+    const loading = loadingAssignments || loadingSubjects;
 
-    const fetchData = async () => {
-        try {
-            const [assignmentsRes, subjectsRes] = await Promise.all([
-                api.get('/api/assignments/teacher'),
-                api.get('/api/teacher/subjects')
-            ]);
-
-            setAssignments(assignmentsRes.data);
-
-            // Create subject map for easy lookup
-            const subjectMap: Record<number, Subject> = {};
-            subjectsRes.data.forEach((s: Subject) => {
-                subjectMap[s.id] = s;
-            });
-            setSubjects(subjectMap);
-
-        } catch (error) {
-            console.error('Failed to fetch data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Create subject map for easy lookup
+    const subjectMap: Record<number, Subject> = {};
+    if (subjectsData) {
+        subjectsData.forEach((s: Subject) => {
+            subjectMap[s.id] = s;
+        });
+    }
+    const subjects = subjectMap;
 
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) {
@@ -62,12 +48,13 @@ export default function TeacherAssignments() {
         }
 
         try {
-            setAssignments(assignments.filter(a => a.id !== id));
+            mutateAssignments(assignments.filter(a => a.id !== id), false);
             await api.delete(`/api/assignments/teacher/${id}`);
+            mutateAssignments();
         } catch (error) {
             console.error('Failed to delete assignment:', error);
             alert('Failed to delete assignment');
-            fetchData();
+            mutateAssignments();
         }
     };
 

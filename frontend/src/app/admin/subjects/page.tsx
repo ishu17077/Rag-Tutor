@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, X, BookOpen } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Subject {
     id: number;
@@ -33,12 +35,19 @@ interface Semester {
 }
 
 export default function AdminSubjects() {
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [degrees, setDegrees] = useState<Degree[]>([]);
-    const [departments, setDepartments] = useState<Department[]>([]);
-    const [semesters, setSemesters] = useState<Semester[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: subjectsData, isLoading: loadingSubjects, mutate: mutateSubjects } = useSWR<Subject[]>('/api/admin/subjects', fetcher);
+    const { data: degreesData, isLoading: loadingDegrees } = useSWR<Degree[]>('/api/admin/degrees', fetcher);
+    const { data: departmentsData, isLoading: loadingDepartments } = useSWR<Department[]>('/api/admin/departments', fetcher);
+    const { data: semestersData, isLoading: loadingSemesters } = useSWR<Semester[]>('/api/admin/semesters', fetcher);
+
     const [showModal, setShowModal] = useState(false);
+
+    const subjects = subjectsData || [];
+    const degrees = degreesData || [];
+    const departments = departmentsData || [];
+    const semesters = semestersData || [];
+
+    const loading = loadingSubjects || loadingDegrees || loadingDepartments || loadingSemesters;
 
     const [formData, setFormData] = useState({
         name: '',
@@ -49,43 +58,31 @@ export default function AdminSubjects() {
         semester_id: ''
     });
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const [subjectsRes, degreesRes, departmentsRes, semestersRes] = await Promise.all([
-                api.get('/api/admin/subjects'),
-                api.get('/api/admin/degrees'),
-                api.get('/api/admin/departments'),
-                api.get('/api/admin/semesters')
-            ]);
-            setSubjects(subjectsRes.data);
-            setDegrees(degreesRes.data);
-            setDepartments(departmentsRes.data);
-            setSemesters(semestersRes.data);
-        } catch (error) {
-            console.error('Failed to fetch data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const newSubject = {
+                id: Date.now(), // Temporary ID for optimistic update
+                ...formData,
+                degree_id: parseInt(formData.degree_id),
+                department_id: parseInt(formData.department_id),
+                semester_id: parseInt(formData.semester_id),
+                is_active: true
+            };
+            mutateSubjects([...subjects, newSubject], false);
+
             await api.post('/api/admin/subjects', {
                 ...formData,
                 degree_id: parseInt(formData.degree_id),
                 department_id: parseInt(formData.department_id),
                 semester_id: parseInt(formData.semester_id)
             });
-            fetchData();
+            mutateSubjects(); // revalidate
             setShowModal(false);
             setFormData({ name: '', code: '', credits: 3, degree_id: '', department_id: '', semester_id: '' });
         } catch (error: any) {
             alert(error.response?.data?.detail || 'Failed to create subject');
+            mutateSubjects();
         }
     };
 

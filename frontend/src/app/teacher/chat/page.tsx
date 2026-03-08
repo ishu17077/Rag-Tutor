@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send, User, MessageSquare, Search } from 'lucide-react';
+import { Send, User, MessageSquare, Search, Paperclip, X } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Conversation {
     id: number;
@@ -20,6 +22,7 @@ interface Message {
     id: number;
     sender_role: string;
     message: string;
+    file_path?: string;
     is_urgent: boolean;
     created_at: string;
     is_read: boolean;
@@ -29,39 +32,69 @@ export default function TeacherChat() {
     const searchParams = useSearchParams();
     const initialConvId = searchParams.get('id');
 
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
     const [activeConversation, setActiveConversation] = useState<number | null>(initialConvId ? parseInt(initialConvId) : null);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            let encoded = reader.result?.toString().replace(/^data:(.*,)?/, '') || '';
+            if ((encoded.length % 4) > 0) {
+                encoded += '='.repeat(4 - (encoded.length % 4));
+            }
+            resolve(encoded);
+        };
+        reader.onerror = error => reject(error);
+    });
+
+    const { data: conversationsData, isLoading: loadingConversations, mutate: mutateConversations } = useSWR<Conversation[]>('/api/chat/conversations', fetcher);
+    // SWR will conditionally fetch only when activeConversation is not null
+    const { data: messagesData, isLoading: loadingMessages, mutate: mutateMessages } = useSWR<Message[]>(
+        activeConversation ? `/api/chat/conversations/${activeConversation}/messages` : null,
+        fetcher
+    );
+
+    const conversations = conversationsData || [];
+    const messages = messagesData || [];
+    const loading = loadingConversations; // Messages loading is fine in the background
 
     useEffect(() => {
-        fetchConversations();
-    }, []);
+        // Use conversationsData directly here so we don't depend on the unstable 'conversations' variable
+        const data = conversationsData || [];
 
-    useEffect(() => {
         if (searchQuery.trim()) {
-            setFilteredConversations(conversations.filter(c =>
+            setFilteredConversations(data.filter(c =>
                 c.participant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 c.participant_roll?.toLowerCase().includes(searchQuery.toLowerCase())
             ));
         } else {
-            setFilteredConversations(conversations);
+            setFilteredConversations(data);
         }
-    }, [searchQuery, conversations]);
+    }, [searchQuery, conversationsData]); // Depend on conversationsData
 
     useEffect(() => {
-        if (activeConversation) {
-            fetchMessages(activeConversation);
-            // Mark as read in UI immediately
-            setConversations(prev => prev.map(c =>
-                c.id === activeConversation ? { ...c, unread_count: 0 } : c
-            ));
+        if (activeConversation && conversationsData) {
+            // Find the active conversation
+            const activeConv = conversationsData.find(c => c.id === activeConversation);
+
+            // ONLY mutate if there are actually unread messages! 
+            // This breaks the infinite loop.
+            if (activeConv && activeConv.unread_count > 0) {
+                const updatedConversations = conversationsData.map(c =>
+                    c.id === activeConversation ? { ...c, unread_count: 0 } : c
+                );
+                mutateConversations(updatedConversations, false);
+            }
         }
-    }, [activeConversation]);
+    }, [activeConversation, conversationsData, mutateConversations]);
 
     useEffect(() => {
         scrollToBottom();
@@ -71,54 +104,52 @@ export default function TeacherChat() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const fetchConversations = async () => {
-        try {
-            const response = await api.get('/api/chat/conversations');
-            setConversations(response.data);
-            setFilteredConversations(response.data);
-        } catch (error) {
-            console.error('Failed to fetch conversations:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchMessages = async (convId: number) => {
-        try {
-            const response = await api.get(`/api/chat/conversations/${convId}/messages`);
-            setMessages(response.data);
-        } catch (error) {
-            console.error('Failed to fetch messages:', error);
-        }
-    };
-
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !activeConversation) return;
+        if ((!newMessage.trim() && !selectedFile) || !activeConversation) return;
 
         try {
-            const response = await api.post(`/api/chat/conversations/${activeConversation}/messages`, {
-                message: newMessage,
+            const payload: any = {
+                message: newMessage || '📎 Attachment',
                 is_urgent: false
-            });
+            };
 
-            setMessages([...messages, { ...response.data, sender_role: 'teacher' }]);
+            if (selectedFile) {
+                payload.file_name = selectedFile.name;
+                payload.file_bytes = await toBase64(selectedFile);
+            }
+
+            const response = await api.post(`/api/chat/conversations/${activeConversation}/messages`, payload);
+
+            const newMsgList = [...messages, { ...response.data, sender_role: 'teacher' }];
+            mutateMessages(newMsgList, false); // Optimistic append
             setNewMessage('');
+            setSelectedFile(null);
 
             // Update last message in sidebar
-            setConversations(prev => prev.map(c =>
+            const updatedConversations = conversations.map(c =>
                 c.id === activeConversation ? {
                     ...c,
                     last_message: response.data.message,
                     last_message_at: response.data.created_at
                 } : c
-            ));
+            );
+            mutateConversations(updatedConversations, false);
         } catch (error) {
             console.error('Failed to send message:', error);
         }
     };
 
     const selectedConv = conversations.find(c => c.id === activeConversation);
+
+    // Helper function to robustly check if a file is an image
+    const isImageFile = (url?: string, type?: string) => {
+        if (!url) return false;
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (type && imageExtensions.includes(type.toLowerCase())) return true;
+        const ext = url.split('.').pop()?.toLowerCase();
+        return imageExtensions.includes(ext || '');
+    };
 
     if (loading) {
         return (
@@ -233,7 +264,28 @@ export default function TeacherChat() {
                                                     ? 'bg-indigo-600 text-white rounded-tr-sm'
                                                     : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'
                                                     }`}>
-                                                    <p className="text-sm">{msg.message}</p>
+
+                                                    {/* Hide placeholder text if it's an image */}
+                                                    {msg.message && msg.message !== '📎 Attachment' && (
+                                                        <p className="text-sm break-words whitespace-pre-wrap">{msg.message}</p>
+                                                    )}
+
+                                                    {/* Render Image or Download link */}
+                                                    {msg.file_path && (
+                                                    <div className={`${msg.message && msg.message !== '📎 Attachment' ? 'mt-2' : ''} text-left`}>
+                                                        {isImageFile(msg.file_path, msg.file_path.split(".").at(-1)) ? (
+                                                            <a href={`/${msg.file_path}`} target="_blank" rel="noreferrer">
+                                                                <img src={`/${msg.file_path}`} alt="attachment" className="max-w-xs rounded-lg shadow-sm w-full object-cover max-h-48" />
+                                                            </a>
+                                                        ) : (
+                                                            <a href={`/${msg.file_path}`} target="_blank" rel="noreferrer" className={`flex items-center gap-2 text-xs p-2 rounded-lg transition ${isMe ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-black/5 hover:bg-black/10 text-gray-700'}`}>
+                                                                <Paperclip className="w-4 h-4" />
+                                                                {msg.file_path ? `Download ${msg.file_path.toUpperCase()}` : 'Download Attachment'}
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                     <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-indigo-100' : 'text-gray-400'}`}>
                                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
@@ -246,8 +298,28 @@ export default function TeacherChat() {
                             </div>
 
                             {/* Input Area */}
-                            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-100 bg-white">
-                                <div className="flex gap-2">
+                            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-100 bg-white relative">
+                                {selectedFile && (
+                                    <div className="absolute -top-12 left-4 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 shadow-sm z-10">
+                                        <Paperclip className="w-3.5 h-3.5 text-gray-500" />
+                                        <span className="max-w-[150px] truncate text-gray-700 font-medium">{selectedFile.name}</span>
+                                        <button type="button" onClick={() => setSelectedFile(null)} className="hover:text-red-500 ml-1 bg-gray-100 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                                    </div>
+                                )}
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        ref={fileInputRef}
+                                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                                    >
+                                        <Paperclip className="w-5 h-5" />
+                                    </button>
                                     <input
                                         type="text"
                                         value={newMessage}
@@ -257,8 +329,8 @@ export default function TeacherChat() {
                                     />
                                     <button
                                         type="submit"
-                                        disabled={!newMessage.trim()}
-                                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        disabled={!newMessage.trim() && !selectedFile}
+                                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                                     >
                                         <Send className="w-5 h-5" />
                                     </button>

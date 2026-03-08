@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { User, Mail, Phone, Building2, Calendar, Briefcase, GraduationCap } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface TeacherProfileData {
     user: {
@@ -17,22 +18,7 @@ interface TeacherProfileData {
 }
 
 export default function TeacherProfile() {
-    const [profile, setProfile] = useState<TeacherProfileData | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const response = await api.get('/api/teacher/profile');
-                setProfile(response.data);
-            } catch (error) {
-                console.error('Failed to fetch profile:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
+    const { data: profile, isLoading: loading } = useSWR<TeacherProfileData>('/api/teacher/profile', fetcher);
 
     if (loading) {
         return (

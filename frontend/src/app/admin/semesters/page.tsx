@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, X, Calendar } from 'lucide-react';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Semester {
     id: number;
@@ -17,47 +19,40 @@ interface Degree {
 }
 
 export default function AdminSemesters() {
-    const [semesters, setSemesters] = useState<Semester[]>([]);
-    const [degrees, setDegrees] = useState<Degree[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
+    const { data: semestersData, isLoading: loadingSemesters, mutate: mutateSemesters } = useSWR<Semester[]>('/api/admin/semesters', fetcher);
+    const { data: degreesData, isLoading: loadingDegrees } = useSWR<Degree[]>('/api/admin/degrees', fetcher);
 
+    const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
         degree_id: '',
         number: 1
     });
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const [semestersRes, degreesRes] = await Promise.all([
-                api.get('/api/admin/semesters'),
-                api.get('/api/admin/degrees')
-            ]);
-            setSemesters(semestersRes.data);
-            setDegrees(degreesRes.data);
-        } catch (error) {
-            console.error('Failed to fetch data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const semesters = semestersData || [];
+    const degrees = degreesData || [];
+    const loading = loadingSemesters || loadingDegrees;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const newSemester = {
+                id: Date.now(), // Temporary ID for optimistic update
+                degree_id: parseInt(formData.degree_id),
+                number: formData.number
+            };
+            mutateSemesters([...semesters, newSemester], false);
+
             await api.post('/api/admin/semesters', {
                 degree_id: parseInt(formData.degree_id),
                 number: formData.number
             });
-            fetchData();
+
+            mutateSemesters(); // Revalidate
             setShowModal(false);
             setFormData({ degree_id: '', number: 1 });
         } catch (error: any) {
             alert(error.response?.data?.detail || 'Failed to create semester');
+            mutateSemesters();
         }
     };
 

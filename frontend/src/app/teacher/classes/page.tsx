@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 import { Users, BookOpen, Calendar, GraduationCap, ArrowRight } from 'lucide-react';
 
 interface ClassAllocation {
@@ -17,23 +19,8 @@ interface ClassAllocation {
 
 export default function TeacherClasses() {
     const router = useRouter();
-    const [classes, setClasses] = useState<ClassAllocation[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchClasses();
-    }, []);
-
-    const fetchClasses = async () => {
-        try {
-            const response = await api.get('/api/teacher/classes');
-            setClasses(response.data);
-        } catch (error) {
-            console.error('Failed to fetch classes:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: classesData, isLoading: loading } = useSWR<ClassAllocation[]>('/api/teacher/classes', fetcher);
+    const classes = classesData || [];
 
     if (loading) {
         return (

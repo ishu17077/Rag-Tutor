@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Users, BookOpen, GraduationCap, Building2, Activity, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import api from '@/lib/api';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/api';
 
 interface Stats {
     total_students: number;
@@ -14,51 +17,36 @@ interface Stats {
 }
 
 export default function AdminDashboard() {
-    const [stats, setStats] = useState<Stats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [examMode, setExamMode] = useState(false);
+    const { data: users, isLoading: loadingUsers } = useSWR<any[]>('/api/admin/users', fetcher);
+    const { data: settings, isLoading: loadingSettings, mutate: mutateSettings } = useSWR<any>('/api/admin/settings', fetcher);
+    const { data: subjects, isLoading: loadingSubjects } = useSWR<any[]>('/api/admin/subjects', fetcher);
+
     const [updating, setUpdating] = useState(false);
 
-    useEffect(() => {
-        fetchStats();
-    }, []);
+    const loading = loadingUsers || loadingSettings || loadingSubjects;
 
-    const fetchStats = async () => {
-        try {
-            const [usersRes, settingsRes, subjectsRes] = await Promise.all([
-                api.get('/api/admin/users'),
-                api.get('/api/admin/settings'),
-                api.get('/api/admin/subjects')
-            ]);
+    const stats: Stats | null = (users && settings && subjects) ? {
+        total_students: users.filter((u: any) => u.role === 'student').length,
+        total_teachers: users.filter((u: any) => u.role === 'teacher').length,
+        total_subjects: subjects.length,
+        total_degrees: 0,
+        total_departments: 0,
+        exam_mode: settings.exam_mode === 'true'
+    } : null;
 
-            const users = usersRes.data;
-            const settings = settingsRes.data;
-            const subjects = subjectsRes.data;
-
-            setStats({
-                total_students: users.filter((u: any) => u.role === 'student').length,
-                total_teachers: users.filter((u: any) => u.role === 'teacher').length,
-                total_subjects: subjects.length,
-                total_degrees: 0,
-                total_departments: 0,
-                exam_mode: settings.exam_mode === 'true'
-            });
-
-            setExamMode(settings.exam_mode === 'true');
-        } catch (error) {
-            console.error('Failed to fetch stats:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const examMode = stats?.exam_mode || false;
 
     const toggleExamMode = async () => {
         setUpdating(true);
         try {
+            // Optimistic update
+            const newExamModeValue = !examMode ? 'true' : 'false';
+            mutateSettings({ ...settings, exam_mode: newExamModeValue }, false);
+
             await api.patch('/api/admin/settings', {
                 exam_mode: !examMode
             });
-            setExamMode(!examMode);
+            mutateSettings(); // revalidate
         } catch (error) {
             console.error('Failed to update exam mode:', error);
         } finally {
@@ -169,22 +157,22 @@ export default function AdminDashboard() {
             <div className="card">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <a href="/admin/degrees" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
+                    <Link href="/admin/degrees" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center block">
                         <GraduationCap className="w-8 h-8 text-admin-primary mx-auto mb-2" />
                         <span className="text-sm font-medium">Add Degree</span>
-                    </a>
-                    <a href="/admin/departments" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
+                    </Link>
+                    <Link href="/admin/departments" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center block">
                         <Building2 className="w-8 h-8 text-admin-primary mx-auto mb-2" />
                         <span className="text-sm font-medium">Add Department</span>
-                    </a>
-                    <a href="/admin/subjects" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
+                    </Link>
+                    <Link href="/admin/subjects" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center block">
                         <BookOpen className="w-8 h-8 text-admin-primary mx-auto mb-2" />
                         <span className="text-sm font-medium">Add Subject</span>
-                    </a>
-                    <a href="/admin/teachers" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center">
+                    </Link>
+                    <Link href="/admin/teachers" className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center block">
                         <Users className="w-8 h-8 text-admin-primary mx-auto mb-2" />
                         <span className="text-sm font-medium">Register Teacher</span>
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>
