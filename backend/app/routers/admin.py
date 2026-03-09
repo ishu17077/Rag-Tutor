@@ -454,12 +454,12 @@ async def update_settings(
         setting = db.query(SystemSetting).filter(SystemSetting.setting_key == key).first()
         if setting:
             old_value = setting.setting_value
-            setting.setting_value = str(value)
+            setting.setting_value = str(value).lower()
             setting.updated_by = admin.id
             
             log_action(
                 db, admin.id, "setting_updated", "system_settings", setting.id,
-                {"value": old_value}, {"value": str(value)}
+                {"value": old_value}, {"value": str(value).lower()}
             )
     
     db.commit()

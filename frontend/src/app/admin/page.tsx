@@ -37,7 +37,9 @@ export default function AdminDashboard() {
     const examMode = stats?.exam_mode || false;
 
     const toggleExamMode = async () => {
+        if(updating) return
         setUpdating(true);
+        
         try {
             // Optimistic update
             const newExamModeValue = !examMode ? 'true' : 'false';
@@ -49,6 +51,7 @@ export default function AdminDashboard() {
             mutateSettings(); // revalidate
         } catch (error) {
             console.error('Failed to update exam mode:', error);
+            mutateSettings();
         } finally {
             setUpdating(false);
         }
