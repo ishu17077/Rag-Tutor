@@ -132,7 +132,7 @@ export default function LoginPage() {
                         </div>
                         <div>
                             <h3 className="text-white font-medium">Offline First</h3>
-                            <p className="text-slate-400 text-sm">Local AI, no cloud dependencies</p>
+                            <p className="text-slate-400 text-sm">Pre-trained AI, fast and accurate responses.</p>
                         </div>
                     </div>
                 </div>
