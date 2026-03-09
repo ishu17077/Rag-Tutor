@@ -249,9 +249,6 @@ export default function LoginPage() {
                                 {loading ? 'Signing in...' : 'Sign In'}
                             </button>
 
-                            <p className="text-center text-sm text-gray-500">
-                                Admin: admin@college.edu / Admin@123
-                            </p>
                         </form>
                     ) : (
                         // Registration Form
