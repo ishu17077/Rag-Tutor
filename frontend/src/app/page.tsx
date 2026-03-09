@@ -131,7 +131,7 @@ export default function LoginPage() {
                             <Shield className="w-5 h-5 text-purple-400" />
                         </div>
                         <div>
-                            <h3 className="text-white font-medium">Offline First</h3>
+                            <h3 className="text-white font-medium">Precision Course Tutor</h3>
                             <p className="text-slate-400 text-sm">Pre-trained AI, fast and accurate responses.</p>
                         </div>
                     </div>
