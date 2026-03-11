@@ -32,7 +32,7 @@ export default function LoginPage() {
         department_id: 1,
         semester_id: 1,
         passout_year: 2028,
-        admission_year: 2024,
+        admission_year: 2026,
         // Teacher specific
         employee_id: '',
         designation: 'Assistant Professor'
@@ -138,7 +138,7 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-slate-500 text-sm">
-                    © 2024 RAG Tutor. All rights reserved.
+                    © 2026 RAG Tutor. All rights reserved.
                 </p>
             </div>
 
@@ -386,3 +386,4 @@ export default function LoginPage() {
         </div>
     );
 }
+
