@@ -248,6 +248,16 @@ export default function LoginPage() {
                             >
                                 {loading ? 'Signing in...' : 'Sign In'}
                             </button>
+                            <p className="text-center text-sm text-gray-500">
+                                Student Login: student@college.edu / Student@123
+                            </p>
+                            <p className="text-center text-sm text-gray-500">
+                                Teacher Login: teacher@college.edu / Teacher@123
+                            </p>
+                            <p className="text-center text-sm text-gray-500">
+                                Admin Login: admin@college.edu / Admin@123
+                            </p>
+
 
                         </form>
                     ) : (
