@@ -79,7 +79,7 @@ nvidia-nvtx-cu12==12.8.90
 packaging==23.2
 passlib==1.7.4
 pdf2image==1.17.0
-pillow==12.1.1
+pillow==12.2.0
 propcache==0.4.1
 proto-plus==1.27.1
 protobuf==5.29.6
